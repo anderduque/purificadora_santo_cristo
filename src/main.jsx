@@ -695,6 +695,7 @@ function AdminDashboard({ onLogout }) {
   const [showDrawConfirm, setShowDrawConfirm] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const [pwForm, setPwForm] = useState({ current: "", next: "", confirm: "" });
 
   async function loadInitial() {
     const [statsData, couponsData, raffleData] = await Promise.all([
@@ -860,6 +861,29 @@ function AdminDashboard({ onLogout }) {
     onLogout();
   }
 
+  async function submitPasswordChange(event) {
+    event.preventDefault();
+    setError("");
+    setNotice("");
+    if (pwForm.next !== pwForm.confirm) {
+      setError("Las contraseñas nuevas no coinciden.");
+      return;
+    }
+    setLoading(true);
+    try {
+      await api("/api/auth/password", {
+        method: "PUT",
+        body: JSON.stringify({ currentPassword: pwForm.current, newPassword: pwForm.next })
+      });
+      setPwForm({ current: "", next: "", confirm: "" });
+      setNotice("Contraseña actualizada correctamente.");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   useEffect(() => {
     const digits = form.nationalId.trim();
     if (!digits) {
@@ -950,6 +974,13 @@ function AdminDashboard({ onLogout }) {
       title: "Formato del cupón",
       text: "Mantener la numeración alineada a Super Gana.",
       metric: "4 digitos"
+    },
+    {
+      id: "password",
+      icon: <Lock />,
+      title: "Cambiar contraseña",
+      text: "Actualizar la contraseña de acceso al panel.",
+      metric: "Seguridad"
     }
   ];
 
@@ -1062,6 +1093,52 @@ function AdminDashboard({ onLogout }) {
               <Settings size={18} />
               Confirmar formato
             </button>
+          </section>
+        )}
+
+        {activeModule === "password" && (
+          <section className="adminPanel narrowPanel">
+            <div className="formTitle">
+              <Lock size={22} />
+              <div>
+                <h3>Cambiar contraseña</h3>
+                <p>La nueva contraseña se guarda cifrada. Mínimo 6 caracteres.</p>
+              </div>
+            </div>
+            <form className="pwForm" onSubmit={submitPasswordChange}>
+              <Field label="Contraseña actual" icon={<Lock />}>
+                <input
+                  type="password"
+                  value={pwForm.current}
+                  onChange={(e) => setPwForm((f) => ({ ...f, current: e.target.value }))}
+                  placeholder="••••••••"
+                  required
+                />
+              </Field>
+              <Field label="Nueva contraseña" icon={<Lock />}>
+                <input
+                  type="password"
+                  value={pwForm.next}
+                  onChange={(e) => setPwForm((f) => ({ ...f, next: e.target.value }))}
+                  placeholder="••••••••"
+                  minLength={6}
+                  required
+                />
+              </Field>
+              <Field label="Confirmar nueva contraseña" icon={<Lock />}>
+                <input
+                  type="password"
+                  value={pwForm.confirm}
+                  onChange={(e) => setPwForm((f) => ({ ...f, confirm: e.target.value }))}
+                  placeholder="••••••••"
+                  required
+                />
+              </Field>
+              <button className="primary submit" disabled={loading} type="submit">
+                <Lock size={18} />
+                {loading ? "Guardando..." : "Actualizar contraseña"}
+              </button>
+            </form>
           </section>
         )}
 

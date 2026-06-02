@@ -1291,6 +1291,11 @@ a {
   max-width: 620px;
 }
 
+.pwForm {
+  display: grid;
+  gap: 14px;
+}
+
 .largeSegmented {
   justify-self: start;
 }

@@ -142,8 +142,21 @@ function defaultSettings() {
     raffle_time: "10:10 pm",
     raffle_promo_image_url: "",
     raffle_promo_image_path: "",
-    raffle_last_draw: null
+    raffle_last_draw: null,
+    admin_password_hash: ""
   };
+}
+
+function hashPassword(password) {
+  return crypto.createHash("sha256").update(String(password)).digest("hex");
+}
+
+async function verifyPassword(input) {
+  const settings = await loadSettings();
+  if (settings.admin_password_hash) {
+    return sameText(hashPassword(input), settings.admin_password_hash);
+  }
+  return sameText(input, adminPassword);
 }
 
 async function readJson(key, fallback) {
@@ -331,11 +344,11 @@ app.get("/api/health", (_req, res) => {
   res.json({ ok: true, dataStore: "storage" });
 });
 
-app.post("/api/auth/login", (req, res) => {
+app.post("/api/auth/login", async (req, res) => {
   const username = clean(req.body.username);
   const password = String(req.body.password ?? "");
 
-  if (!sameText(username, adminUser) || !sameText(password, adminPassword)) {
+  if (!sameText(username, adminUser) || !(await verifyPassword(password))) {
     return res.status(401).json({ error: "Usuario o contrasena incorrectos." });
   }
 
@@ -347,6 +360,26 @@ app.post("/api/auth/login", (req, res) => {
     maxAge: 15 * 60 * 1000
   });
   res.json({ authenticated: true });
+});
+
+app.put("/api/auth/password", requireAdmin, async (req, res) => {
+  const currentPassword = String(req.body.currentPassword ?? "");
+  const newPassword = String(req.body.newPassword ?? "");
+
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: "La contrasena actual y la nueva son obligatorias." });
+  }
+  if (newPassword.length < 6) {
+    return res.status(400).json({ error: "La nueva contrasena debe tener al menos 6 caracteres." });
+  }
+  if (!(await verifyPassword(currentPassword))) {
+    return res.status(401).json({ error: "La contrasena actual es incorrecta." });
+  }
+
+  const settings = await loadSettings();
+  settings.admin_password_hash = hashPassword(newPassword);
+  await saveSettings(settings);
+  res.json({ updated: true });
 });
 
 app.post("/api/auth/logout", (req, res) => {
