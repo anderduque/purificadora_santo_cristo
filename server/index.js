@@ -2,121 +2,50 @@ import express from "express";
 import "dotenv/config";
 import crypto from "node:crypto";
 import fs from "node:fs";
-import { applicationDefault, cert, getApps, initializeApp } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
 import multer from "multer";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { Storage } from "@google-cloud/storage";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const rootDir = path.resolve(__dirname, "..");
-const dataDir = path.join(rootDir, "data");
-const isVercel = Boolean(process.env.VERCEL);
-const uploadsDir = isVercel ? path.join("/tmp", "uploads") : path.join(dataDir, "uploads");
-const dbPath = path.join(dataDir, "santo-cristo.sqlite");
 const port = Number(process.env.PORT ?? 4173);
 const adminUser = process.env.ADMIN_USER ?? "admin";
 const adminPassword = process.env.ADMIN_PASSWORD ?? "1234";
 const sessionSecret = process.env.ADMIN_SESSION_SECRET ?? "santo-cristo-local-session";
-const firebaseProjectId = process.env.FIREBASE_PROJECT_ID ?? "purificadorasantocristo";
-const firebaseServiceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
-const firebaseServiceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-const preferFirestore =
-  isVercel ||
-  process.env.DATA_STORE === "firestore" ||
-  Boolean(firebaseServiceAccountJson || firebaseServiceAccountPath || process.env.GOOGLE_APPLICATION_CREDENTIALS);
-let useSqlite = !preferFirestore;
+const bucketName = process.env.STORAGE_BUCKET ?? "purificadorasantocristo.firebasestorage.app";
+const storageServiceAccountJson =
+  process.env.STORAGE_SERVICE_ACCOUNT_JSON ?? process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+const storageServiceAccountPath = process.env.STORAGE_SERVICE_ACCOUNT_PATH;
+const publicUploads = process.env.STORAGE_PUBLIC_UPLOADS !== "false";
 
-fs.mkdirSync(uploadsDir, { recursive: true });
-
-let db = null;
-async function initializeSqlite() {
-  if (db) return;
-  fs.mkdirSync(dataDir, { recursive: true });
-  const { default: Database } = await import("better-sqlite3");
-  db = new Database(dbPath);
-  db.exec(`
-    PRAGMA journal_mode = WAL;
-    PRAGMA foreign_keys = ON;
-
-    CREATE TABLE IF NOT EXISTS settings (
-      key TEXT PRIMARY KEY,
-      value TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS coupons (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      first_name TEXT NOT NULL,
-      last_name TEXT NOT NULL,
-      national_id TEXT NOT NULL,
-      phone TEXT NOT NULL,
-      purchase_amount REAL,
-      purchase_note TEXT,
-      coupon_code TEXT NOT NULL UNIQUE,
-      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-    );
-
-    INSERT OR IGNORE INTO settings (key, value) VALUES ('coupon_digits', '4');
-    INSERT OR IGNORE INTO settings (key, value) VALUES ('raffle_prize', 'Moto');
-    INSERT OR IGNORE INTO settings (key, value) VALUES ('raffle_date', '');
-    INSERT OR IGNORE INTO settings (key, value) VALUES ('raffle_lottery', 'Loteria del Tachira');
-    INSERT OR IGNORE INTO settings (key, value) VALUES ('raffle_time', '10:10 pm');
-    INSERT OR IGNORE INTO settings (key, value) VALUES ('raffle_promo_image', '');
-  `);
-}
-
-if (useSqlite) {
-  await initializeSqlite();
-}
-
-let firestore = null;
-if (preferFirestore) {
-  try {
-    const firebaseOptions = { projectId: firebaseProjectId };
-    if (firebaseServiceAccountJson) {
-      const serviceAccountText = firebaseServiceAccountJson.trim().startsWith("{")
-        ? firebaseServiceAccountJson
-        : Buffer.from(firebaseServiceAccountJson, "base64").toString("utf8");
-      const serviceAccount = JSON.parse(serviceAccountText);
-      if (serviceAccount.private_key) {
-        serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, "\n");
-      }
-      firebaseOptions.credential = cert(serviceAccount);
-    } else if (firebaseServiceAccountPath) {
-      const serviceAccount = JSON.parse(
-        fs.readFileSync(path.resolve(rootDir, firebaseServiceAccountPath), "utf8")
-      );
-      firebaseOptions.credential = cert(serviceAccount);
-    } else {
-      firebaseOptions.credential = applicationDefault();
+function loadServiceAccount() {
+  if (storageServiceAccountJson) {
+    const raw = storageServiceAccountJson.trim().startsWith("{")
+      ? storageServiceAccountJson
+      : Buffer.from(storageServiceAccountJson, "base64").toString("utf8");
+    const serviceAccount = JSON.parse(raw);
+    if (serviceAccount.private_key) {
+      serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, "\n");
     }
-
-    if (getApps().length === 0) initializeApp(firebaseOptions);
-    firestore = getFirestore();
-  } catch (error) {
-    console.warn(`Firestore no disponible, usando SQLite local: ${error.message}`);
-    if (!isVercel) {
-      useSqlite = true;
-      await initializeSqlite();
-    }
+    return serviceAccount;
   }
+  if (storageServiceAccountPath) {
+    return JSON.parse(fs.readFileSync(storageServiceAccountPath, "utf8"));
+  }
+  return null;
 }
+
+const serviceAccount = loadServiceAccount();
+const storage = new Storage(
+  serviceAccount
+    ? { credentials: serviceAccount, projectId: serviceAccount.project_id }
+    : undefined
+);
+const bucket = storage.bucket(bucketName);
 
 const app = express();
 app.use(express.json());
-app.use("/uploads", express.static(uploadsDir));
 
 const upload = multer({
-  storage: firestore
-    ? multer.memoryStorage()
-    : multer.diskStorage({
-        destination: (_req, _file, cb) => cb(null, uploadsDir),
-        filename: (_req, file, cb) => {
-          const extension = path.extname(file.originalname).toLowerCase() || ".jpg";
-          cb(null, `promo-${Date.now()}${extension}`);
-        }
-      }),
+  storage: multer.memoryStorage(),
   fileFilter: (_req, file, cb) => {
     if (!file.mimetype.startsWith("image/")) {
       return cb(new Error("Solo se permiten imagenes."));
@@ -193,58 +122,82 @@ function getCouponDigits() {
   return 4;
 }
 
-async function setCouponDigits() {
-  if (firestore) {
-    await setFirestoreSetting("coupon_digits", "4");
-    return 4;
-  }
+const SETTINGS_KEY = "data/settings.json";
+const COUPONS_KEY = "data/coupons.json";
 
-  db.prepare("UPDATE settings SET value = ? WHERE key = 'coupon_digits'").run("4");
+function defaultSettings() {
+  return {
+    coupon_digits: "4",
+    raffle_prize: "Moto",
+    raffle_date: "",
+    raffle_lottery: "Loteria del Tachira",
+    raffle_time: "10:10 pm",
+    raffle_promo_image_url: "",
+    raffle_promo_image_path: "",
+    raffle_last_draw: null
+  };
+}
+
+async function readJson(key, fallback) {
+  try {
+    const [contents] = await bucket.file(key).download();
+    return JSON.parse(contents.toString("utf8"));
+  } catch (error) {
+    if (error.code === 404) return fallback;
+    throw error;
+  }
+}
+
+async function writeJson(key, value) {
+  await bucket.file(key).save(JSON.stringify(value, null, 2), {
+    contentType: "application/json"
+  });
+}
+
+async function loadSettings() {
+  const settings = await readJson(SETTINGS_KEY, null);
+  if (settings) return { ...defaultSettings(), ...settings };
+  const initial = defaultSettings();
+  await writeJson(SETTINGS_KEY, initial);
+  return initial;
+}
+
+async function saveSettings(next) {
+  const settings = { ...defaultSettings(), ...next };
+  await writeJson(SETTINGS_KEY, settings);
+  return settings;
+}
+
+async function getPromoImageUrl(settings) {
+  if (!settings.raffle_promo_image_path) {
+    return settings.raffle_promo_image_url || "";
+  }
+  if (publicUploads) {
+    return settings.raffle_promo_image_url || "";
+  }
+  const [signedUrl] = await bucket.file(settings.raffle_promo_image_path).getSignedUrl({
+    action: "read",
+    expires: Date.now() + 60 * 60 * 1000
+  });
+  return signedUrl;
+}
+
+async function setCouponDigits() {
+  const settings = await loadSettings();
+  settings.coupon_digits = "4";
+  await saveSettings(settings);
   return 4;
 }
 
-function getSqliteSetting(key, fallback = "") {
-  const row = db.prepare("SELECT value FROM settings WHERE key = ?").get(key);
-  return row?.value ?? fallback;
-}
-
-function setSqliteSetting(key, value) {
-  db.prepare(
-    `INSERT INTO settings (key, value)
-     VALUES (?, ?)
-     ON CONFLICT(key) DO UPDATE SET value = excluded.value`
-  ).run(key, clean(value));
-}
-
-async function getFirestoreSetting(key, fallback = "") {
-  const snapshot = await firestore.collection("settings").doc(key).get();
-  return snapshot.exists ? snapshot.data().value ?? fallback : fallback;
-}
-
-async function setFirestoreSetting(key, value) {
-  await firestore.collection("settings").doc(key).set({
-    value: clean(value),
-    updated_at: new Date().toISOString()
-  }, { merge: true });
-}
-
-async function getSetting(key, fallback = "") {
-  if (firestore) return getFirestoreSetting(key, fallback);
-  return getSqliteSetting(key, fallback);
-}
-
-async function setSetting(key, value) {
-  if (firestore) return setFirestoreSetting(key, value);
-  return setSqliteSetting(key, value);
-}
-
 async function getRaffleDetails() {
+  const settings = await loadSettings();
   return {
-    prize: await getSetting("raffle_prize", "Moto"),
-    date: await getSetting("raffle_date"),
-    lottery: await getSetting("raffle_lottery", "Loteria del Tachira"),
-    time: await getSetting("raffle_time", "10:10 pm"),
-    promoImage: await getSetting("raffle_promo_image")
+    prize: settings.raffle_prize || "Moto",
+    date: settings.raffle_date || "",
+    lottery: settings.raffle_lottery || "Loteria del Tachira",
+    time: settings.raffle_time || "10:10 pm",
+    promoImage: await getPromoImageUrl(settings),
+    lastDraw: settings.raffle_last_draw || null
   };
 }
 
@@ -252,43 +205,44 @@ function localDateString(date = new Date()) {
   return date.toISOString().slice(0, 19).replace("T", " ");
 }
 
-function mapFirestoreCoupon(doc) {
-  const data = doc.data();
-  return {
-    id: data.id ?? doc.id,
-    first_name: data.first_name,
-    last_name: data.last_name,
-    national_id: data.national_id,
-    phone: data.phone,
-    purchase_amount: data.purchase_amount ?? null,
-    purchase_note: data.purchase_note ?? null,
-    coupon_code: data.coupon_code ?? doc.id,
-    created_at: data.created_at ?? localDateString(),
-    created_at_iso: data.created_at_iso ?? null
-  };
+async function loadCoupons() {
+  return await readJson(COUPONS_KEY, []);
 }
 
-async function couponCodeExists(code) {
-  if (firestore) {
-    const snapshot = await firestore.collection("coupons").doc(code).get();
-    return snapshot.exists;
+async function saveCoupons(coupons) {
+  await writeJson(COUPONS_KEY, coupons);
+}
+
+function groupParticipants(coupons) {
+  const participants = new Map();
+  for (const coupon of coupons) {
+    const key = coupon.national_id;
+    if (!participants.has(key)) {
+      participants.set(key, {
+        national_id: coupon.national_id,
+        first_name: coupon.first_name,
+        last_name: coupon.last_name,
+        phone: coupon.phone,
+        coupon_count: 0
+      });
+    }
+    const entry = participants.get(key);
+    entry.coupon_count += 1;
   }
-
-  return Boolean(db.prepare("SELECT 1 FROM coupons WHERE coupon_code = ?").get(code));
+  return Array.from(participants.values()).sort((a, b) => b.coupon_count - a.coupon_count);
 }
 
-async function countCoupons() {
-  if (firestore) {
-    const snapshot = await firestore.collection("coupons").get();
-    return snapshot.size;
-  }
-
-  return db.prepare("SELECT COUNT(*) AS count FROM coupons").get().count;
+async function couponCodeExists(code, coupons) {
+  return coupons.some((coupon) => coupon.coupon_code === code);
 }
 
-async function generateCouponCode(digits) {
+async function countCoupons(coupons) {
+  return coupons.length;
+}
+
+async function generateCouponCode(digits, coupons) {
   const max = 10 ** digits;
-  const used = await countCoupons();
+  const used = await countCoupons(coupons);
 
   if (used >= max) {
     throw new Error("No quedan cupones disponibles con esa cantidad de digitos.");
@@ -296,84 +250,51 @@ async function generateCouponCode(digits) {
 
   for (let attempts = 0; attempts < 200; attempts += 1) {
     const code = String(crypto.randomInt(0, max)).padStart(digits, "0");
-    if (!(await couponCodeExists(code))) return code;
+    if (!(await couponCodeExists(code, coupons))) return code;
   }
 
   throw new Error("No se pudo generar un cupon unico. Intenta de nuevo.");
 }
 
 async function listCoupons({ query = "", limit = 80 } = {}) {
-  if (firestore) {
-    const snapshot = await firestore
-      .collection("coupons")
-      .orderBy("created_at", "desc")
-      .limit(Math.min(limit, 500))
-      .get();
-    const rows = snapshot.docs.map(mapFirestoreCoupon);
-    const safeQuery = query.toLowerCase();
-
-    if (!safeQuery) return rows;
-    return rows.filter((coupon) =>
-      `${coupon.first_name} ${coupon.last_name} ${coupon.national_id} ${coupon.phone} ${coupon.coupon_code}`
-        .toLowerCase()
-        .includes(safeQuery)
-    );
-  }
-
-  return query
-    ? db
-        .prepare(
-          `SELECT * FROM coupons
-           WHERE lower(first_name || ' ' || last_name || ' ' || national_id || ' ' || phone || ' ' || coupon_code)
-           LIKE ?
-           ORDER BY id DESC
-           LIMIT ?`
-        )
-        .all(`%${query}%`, limit)
-    : db.prepare("SELECT * FROM coupons ORDER BY id DESC LIMIT ?").all(limit);
+  const coupons = await loadCoupons();
+  const safeQuery = query.toLowerCase();
+  const filtered = safeQuery
+    ? coupons.filter((coupon) =>
+        `${coupon.first_name} ${coupon.last_name} ${coupon.national_id} ${coupon.phone} ${coupon.coupon_code}`
+          .toLowerCase()
+          .includes(safeQuery)
+      )
+    : coupons;
+  return filtered
+    .sort((left, right) => String(right.created_at).localeCompare(String(left.created_at)))
+    .slice(0, Math.min(limit, 500));
 }
 
 async function getStats() {
-  if (firestore) {
-    const coupons = await listCoupons({ limit: 10000 });
-    const totalCustomers = new Set(coupons.map((coupon) => coupon.national_id)).size;
-    const lastCoupon = coupons[0]
-      ? {
-          coupon_code: coupons[0].coupon_code,
-          first_name: coupons[0].first_name,
-          last_name: coupons[0].last_name,
-          created_at: coupons[0].created_at
-        }
-      : null;
-
-    return {
-      totalCoupons: coupons.length,
-      totalCustomers,
-      couponDigits: getCouponDigits(),
-      lastCoupon,
-      dataStore: "firestore"
-    };
-  }
-
-  const totalCoupons = db.prepare("SELECT COUNT(*) AS count FROM coupons").get().count;
-  const totalCustomers = db
-    .prepare("SELECT COUNT(DISTINCT national_id) AS count FROM coupons")
-    .get().count;
-  const lastCoupon = db
-    .prepare("SELECT coupon_code, first_name, last_name, created_at FROM coupons ORDER BY id DESC LIMIT 1")
-    .get();
+  const coupons = await listCoupons({ limit: 10000 });
+  const totalCustomers = new Set(coupons.map((coupon) => coupon.national_id)).size;
+  const lastCoupon = coupons[0]
+    ? {
+        coupon_code: coupons[0].coupon_code,
+        first_name: coupons[0].first_name,
+        last_name: coupons[0].last_name,
+        created_at: coupons[0].created_at
+      }
+    : null;
 
   return {
-    totalCoupons,
+    totalCoupons: coupons.length,
     totalCustomers,
     couponDigits: getCouponDigits(),
-    lastCoupon: lastCoupon ?? null,
-    dataStore: "sqlite"
+    lastCoupon,
+    dataStore: "storage"
   };
 }
 
 async function createCoupon(payload) {
-  const couponCode = await generateCouponCode(getCouponDigits());
+  const coupons = await loadCoupons();
+  const couponCode = await generateCouponCode(getCouponDigits(), coupons);
   const now = new Date();
   const coupon = {
     first_name: payload.firstName,
@@ -385,43 +306,16 @@ async function createCoupon(payload) {
     coupon_code: couponCode,
     created_at: localDateString(now),
     created_at_iso: now.toISOString(),
-    source: firestore ? "firestore" : "sqlite"
+    source: "storage"
   };
-
-  if (firestore) {
-    await firestore.collection("coupons").doc(couponCode).set({
-      ...coupon,
-      id: couponCode,
-      audit: {
-        action: "created",
-        created_at: now.toISOString()
-      }
-    });
-    return { id: couponCode, ...coupon };
-  }
-
-  const result = db
-    .prepare(
-      `INSERT INTO coupons (
-        first_name, last_name, national_id, phone, purchase_amount, purchase_note, coupon_code, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-    )
-    .run(
-      coupon.first_name,
-      coupon.last_name,
-      coupon.national_id,
-      coupon.phone,
-      coupon.purchase_amount,
-      coupon.purchase_note,
-      coupon.coupon_code,
-      coupon.created_at
-    );
-
-  return db.prepare("SELECT * FROM coupons WHERE id = ?").get(result.lastInsertRowid);
+  coupons.unshift({ id: couponCode, ...coupon });
+  await saveCoupons(coupons);
+  const customerCouponCount = coupons.filter((row) => row.national_id === coupon.national_id).length;
+  return { id: couponCode, ...coupon, customer_coupon_count: customerCouponCount };
 }
 
 app.get("/api/health", (_req, res) => {
-  res.json({ ok: true, dataStore: firestore ? "firestore" : "sqlite" });
+  res.json({ ok: true, dataStore: "storage" });
 });
 
 app.post("/api/auth/login", (req, res) => {
@@ -461,6 +355,14 @@ app.get("/api/coupons", requireAdmin, async (req, res) => {
   res.json(await listCoupons({ query, limit }));
 });
 
+app.get("/api/coupons/count", async (req, res) => {
+  const nationalId = normalizeDigits(req.query.nationalId);
+  if (!nationalId) return res.json({ nationalId: "", count: 0 });
+  const coupons = await loadCoupons();
+  const count = coupons.filter((coupon) => coupon.national_id === nationalId).length;
+  res.json({ nationalId, count });
+});
+
 app.post("/api/coupons", async (req, res) => {
   const firstName = clean(req.body.firstName);
   const lastName = clean(req.body.lastName);
@@ -497,7 +399,11 @@ app.post("/api/coupons", async (req, res) => {
       purchaseAmount,
       purchaseNote
     });
-    res.status(201).json({ coupon, stats: await getStats() });
+    res.status(201).json({
+      coupon,
+      stats: await getStats(),
+      customerCouponCount: coupon.customer_coupon_count
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -517,35 +423,84 @@ app.get("/api/raffle", async (_req, res) => {
 });
 
 app.put("/api/raffle", requireAdmin, async (req, res) => {
-  await setSetting("raffle_prize", req.body.prize);
-  await setSetting("raffle_date", req.body.date);
-  await setSetting("raffle_lottery", req.body.lottery);
-  await setSetting("raffle_time", req.body.time);
+  const settings = await loadSettings();
+  settings.raffle_prize = clean(req.body.prize) || settings.raffle_prize;
+  settings.raffle_date = clean(req.body.date);
+  settings.raffle_lottery = clean(req.body.lottery) || settings.raffle_lottery;
+  settings.raffle_time = clean(req.body.time) || settings.raffle_time;
+  await saveSettings(settings);
   res.json(await getRaffleDetails());
+});
+
+app.get("/api/raffle/participants", requireAdmin, async (_req, res) => {
+  const coupons = await loadCoupons();
+  const participants = groupParticipants(coupons);
+  res.json({
+    participants,
+    totalParticipants: participants.length,
+    totalCoupons: coupons.length
+  });
+});
+
+app.post("/api/raffle/draw", requireAdmin, async (_req, res) => {
+  const coupons = await loadCoupons();
+  const participants = groupParticipants(coupons);
+  if (participants.length === 0) {
+    return res.status(400).json({ error: "No hay participantes registrados." });
+  }
+
+  const winner = participants[crypto.randomInt(0, participants.length)];
+  const drawnAt = new Date().toISOString();
+  const settings = await loadSettings();
+  settings.raffle_last_draw = {
+    winner,
+    drawn_at: drawnAt,
+    totalParticipants: participants.length,
+    totalCoupons: coupons.length
+  };
+  await saveSettings(settings);
+
+  res.json({
+    winner,
+    drawnAt,
+    totalParticipants: participants.length,
+    totalCoupons: coupons.length
+  });
 });
 
 app.post("/api/raffle/promo-image", requireAdmin, upload.single("promoImage"), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: "Debes seleccionar una imagen." });
   }
+  const settings = await loadSettings();
 
-  const currentImage = await getSetting("raffle_promo_image");
-  if (currentImage?.startsWith("/uploads/")) {
-    const currentPath = path.join(uploadsDir, path.basename(currentImage));
-    if (fs.existsSync(currentPath)) fs.unlinkSync(currentPath);
+  if (settings.raffle_promo_image_path) {
+    await bucket.file(settings.raffle_promo_image_path).delete().catch(() => {});
   }
 
-  if (firestore) {
-    const imageData = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
-    if (imageData.length > 950000) {
-      return res.status(400).json({
-        error: "La imagen es muy pesada para Firestore. Usa una imagen menor a 700 KB."
-      });
-    }
-    await setSetting("raffle_promo_image", imageData);
+  const extension = path.extname(req.file.originalname || "").toLowerCase() || ".jpg";
+  const objectPath = `uploads/promo-${Date.now()}${extension}`;
+  const file = bucket.file(objectPath);
+  await file.save(req.file.buffer, {
+    contentType: req.file.mimetype,
+    resumable: false
+  });
+
+  if (publicUploads) {
+    await file.makePublic().catch(() => {});
+  }
+
+  if (publicUploads) {
+    const encodedPath = objectPath
+      .split("/")
+      .map((segment) => encodeURIComponent(segment))
+      .join("/");
+    settings.raffle_promo_image_url = `https://storage.googleapis.com/${bucketName}/${encodedPath}`;
   } else {
-    await setSetting("raffle_promo_image", `/uploads/${req.file.filename}`);
+    settings.raffle_promo_image_url = "";
   }
+  settings.raffle_promo_image_path = objectPath;
+  await saveSettings(settings);
   res.json(await getRaffleDetails());
 });
 
@@ -557,15 +512,15 @@ app.use((error, _req, res, next) => {
   res.status(400).json({ error: error.message || "No se pudo procesar la solicitud." });
 });
 
-if (process.env.NODE_ENV === "production" && !isVercel) {
-  const distDir = path.join(rootDir, "dist");
+if (process.env.NODE_ENV === "production") {
+  const distDir = path.resolve("dist");
   app.use(express.static(distDir));
   app.get("*", (_req, res) => {
     res.sendFile(path.join(distDir, "index.html"));
   });
 }
 
-if (!isVercel) {
+if (!process.env.VERCEL) {
   app.listen(port, () => {
     console.log(`Santo Cristo API lista en http://localhost:${port}`);
   });

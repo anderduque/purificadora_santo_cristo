@@ -17,8 +17,8 @@ Configura estas variables en el proyecto de Vercel:
 - `ADMIN_USER=admin`
 - `ADMIN_PASSWORD=1234`
 - `ADMIN_SESSION_SECRET=<un secreto largo y privado>`
-- `DATA_STORE=firestore`
-- `FIREBASE_PROJECT_ID=purificadorasantocristo`
-- `FIREBASE_SERVICE_ACCOUNT_JSON=<service account JSON completo o en base64>`
+- `STORAGE_BUCKET=purificadorasantocristo.firebasestorage.app`
+- `STORAGE_SERVICE_ACCOUNT_JSON=<service account JSON completo o en base64>`
+- `STORAGE_PUBLIC_UPLOADS=true` (pon `false` para usar URLs firmadas privadas)
 
-No subas el JSON de Firebase al repositorio.
+No subas el JSON de la cuenta de servicio al repositorio.

@@ -10,11 +10,10 @@
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.5.0",
-    "better-sqlite3": "^12.10.0",
     "concurrently": "^9.1.2",
     "dotenv": "^17.4.2",
     "express": "^4.19.2",
-    "firebase-admin": "^13.10.0",
+    "@google-cloud/storage": "^7.16.0",
     "lucide-react": "^0.468.0",
     "multer": "^2.1.1",
     "react": "^18.3.1",

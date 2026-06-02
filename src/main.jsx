@@ -64,6 +64,18 @@ function money(value) {
   }).format(value);
 }
 
+function couponCountLabel(count) {
+  if (count == null) return "";
+  if (count === 0) return "Aun no tiene cupones registrados.";
+  return `Lleva ${count} ${count === 1 ? "cupon" : "cupones"}.`;
+}
+
+function pickRandomParticipant(participants) {
+  if (!participants?.length) return null;
+  const index = Math.floor(Math.random() * participants.length);
+  return participants[index];
+}
+
 async function api(path, options) {
   const isFormData = options?.body instanceof FormData;
   const controller = new AbortController();
@@ -87,6 +99,11 @@ async function api(path, options) {
   const data = await response.json();
   if (!response.ok) throw new Error(data.error ?? "Ocurrio un error.");
   return data;
+}
+
+async function fetchCouponCount(nationalId) {
+  const response = await api(`/api/coupons/count?nationalId=${encodeURIComponent(nationalId)}`);
+  return response.count ?? 0;
 }
 
 function compressImage(file) {
@@ -177,7 +194,7 @@ function CustomerHome() {
           <div className="raffleMeta">
             <span><Trophy size={16} /> {raffle.prize || "Moto"}</span>
             <span><CalendarClock size={16} /> {formatRaffleDate(raffle.date)}</span>
-            <span><Ticket size={16} /> {raffle.lottery || "Loteria del Tachira"} · {raffle.time || "10:10 pm"}</span>
+            <span><Ticket size={16} /> Sorteo local · {raffle.time || "10:10 pm"}</span>
           </div>
           {raffle.promoImage && (
             <img className="homePromo" src={raffle.promoImage} alt="Promocion del sorteo" />
@@ -199,6 +216,7 @@ function CustomerHome() {
 function CustomerRegister() {
   const [form, setForm] = useState(emptyForm);
   const [createdCoupon, setCreatedCoupon] = useState(null);
+  const [couponCount, setCouponCount] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -206,6 +224,20 @@ function CustomerRegister() {
     setForm((current) => ({ ...current, [field]: value }));
     setError("");
   }
+
+  useEffect(() => {
+    const nationalId = form.nationalId.trim();
+    if (!nationalId) {
+      setCouponCount(null);
+      return;
+    }
+    const handle = window.setTimeout(() => {
+      fetchCouponCount(nationalId)
+        .then((count) => setCouponCount(count))
+        .catch(() => setCouponCount(null));
+    }, 300);
+    return () => window.clearTimeout(handle);
+  }, [form.nationalId]);
 
   async function submitPurchase(event) {
     event.preventDefault();
@@ -220,7 +252,10 @@ function CustomerRegister() {
           purchaseNote: form.purchaseNote || "Registro cliente"
         })
       });
-      setCreatedCoupon(data.coupon);
+      setCreatedCoupon({
+        ...data.coupon,
+        customerCouponCount: data.customerCouponCount
+      });
       setForm(emptyForm);
     } catch (err) {
       setError(err.message);
@@ -238,6 +273,11 @@ function CustomerRegister() {
           <strong>{createdCoupon.coupon_code}</strong>
           <h1>{createdCoupon.first_name} {createdCoupon.last_name}</h1>
           <p>Guarda este número. La administración también lo tiene registrado.</p>
+          {createdCoupon.customerCouponCount != null && (
+            <small className="couponCountHint">
+              {couponCountLabel(createdCoupon.customerCouponCount)}
+            </small>
+          )}
           <div className="successActions">
             <button className="publicButton" onClick={() => setCreatedCoupon(null)}>
               <BadgePlus size={20} />
@@ -292,6 +332,9 @@ function CustomerRegister() {
               required
             />
           </Field>
+          {couponCount != null && (
+            <p className="couponCountHint">{couponCountLabel(couponCount)}</p>
+          )}
           <Field label="Telefono" icon={<Phone />}>
             <input
               value={form.phone}
@@ -423,6 +466,7 @@ function AdminLogin({ onSuccess }) {
 function AdminDashboard({ onLogout }) {
   const [activeModule, setActiveModule] = useState("home");
   const [form, setForm] = useState(emptyForm);
+  const [customerCouponCount, setCustomerCouponCount] = useState(null);
   const [stats, setStats] = useState(null);
   const [coupons, setCoupons] = useState([]);
   const [createdCoupon, setCreatedCoupon] = useState(null);
@@ -431,6 +475,12 @@ function AdminDashboard({ onLogout }) {
   const [raffle, setRaffle] = useState(emptyRaffle);
   const [raffleForm, setRaffleForm] = useState(emptyRaffle);
   const [raffleImageFile, setRaffleImageFile] = useState(null);
+  const [raffleParticipants, setRaffleParticipants] = useState([]);
+  const [raffleSelection, setRaffleSelection] = useState(null);
+  const [raffleWinner, setRaffleWinner] = useState(null);
+  const [raffleTotals, setRaffleTotals] = useState({ participants: 0, coupons: 0 });
+  const [rafflePreparing, setRafflePreparing] = useState(false);
+  const [showDrawConfirm, setShowDrawConfirm] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
 
@@ -523,7 +573,11 @@ function AdminDashboard({ onLogout }) {
       setCreatedCoupon(data.coupon);
       setStats(data.stats);
       setForm(emptyForm);
-      setNotice("Compra registrada y cupon generado.");
+      setCustomerCouponCount(data.customerCouponCount ?? null);
+      const countText = data.customerCouponCount != null
+        ? ` Cliente con ${data.customerCouponCount} ${data.customerCouponCount === 1 ? "cupon" : "cupones"}.`
+        : "";
+      setNotice(`Compra registrada y cupon generado.${countText}`);
       setCoupons(await api("/api/coupons"));
     } catch (err) {
       setError(err.message);
@@ -550,6 +604,61 @@ function AdminDashboard({ onLogout }) {
   async function logout() {
     await api("/api/auth/logout", { method: "POST" }).catch(() => {});
     onLogout();
+  }
+
+  useEffect(() => {
+    const nationalId = form.nationalId.trim();
+    if (!nationalId) {
+      setCustomerCouponCount(null);
+      return;
+    }
+    const handle = window.setTimeout(() => {
+      fetchCouponCount(nationalId)
+        .then((count) => setCustomerCouponCount(count))
+        .catch(() => setCustomerCouponCount(null));
+    }, 300);
+    return () => window.clearTimeout(handle);
+  }, [form.nationalId]);
+
+  async function prepareRaffle() {
+    setRafflePreparing(true);
+    setError("");
+    setNotice("");
+    try {
+      const data = await api("/api/raffle/participants");
+      setRaffleParticipants(data.participants ?? []);
+      setRaffleTotals({
+        participants: data.totalParticipants ?? 0,
+        coupons: data.totalCoupons ?? 0
+      });
+      setRaffleSelection(pickRandomParticipant(data.participants ?? []));
+      setRaffleWinner(null);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setRafflePreparing(false);
+    }
+  }
+
+  async function drawRaffle() {
+    setRafflePreparing(true);
+    setError("");
+    setNotice("");
+    try {
+      const data = await api("/api/raffle/draw", { method: "POST" });
+      setRaffleWinner(data.winner);
+      setRaffleSelection(data.winner);
+      setRaffleTotals({
+        participants: data.totalParticipants ?? 0,
+        coupons: data.totalCoupons ?? 0
+      });
+      setNotice("Sorteo realizado correctamente.");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setShowDrawConfirm(false);
+      setRafflePreparing(false);
+    }
   }
 
   const adminModules = [
@@ -696,88 +805,182 @@ function AdminDashboard({ onLogout }) {
         )}
 
         {activeModule === "raffle" && (
-          <section className="raffleSettings">
-            <form className="formSurface raffleForm" onSubmit={saveRaffle}>
+          <div className="raffleStack">
+            <section className="raffleSettings">
+              <form className="formSurface raffleForm" onSubmit={saveRaffle}>
+                <div className="formTitle">
+                  <Trophy size={22} />
+                  <div>
+                    <h3>Detalles del sorteo</h3>
+                    <p>Estos datos se muestran al cliente en la pantalla principal.</p>
+                  </div>
+                </div>
+
+                <div className="fieldGrid raffleFieldGrid">
+                  <Field label="Que se rifa" icon={<Trophy />}>
+                    <input
+                      value={raffleForm.prize}
+                      onChange={(event) => updateRaffleField("prize", event.target.value)}
+                      placeholder="Moto"
+                      required
+                    />
+                  </Field>
+                  <Field label="Fecha" icon={<CalendarClock />}>
+                    <input
+                      value={raffleForm.date}
+                      onChange={(event) => updateRaffleField("date", event.target.value)}
+                      type="date"
+                    />
+                  </Field>
+                  <Field label="Hora" icon={<CalendarClock />}>
+                    <input
+                      value={raffleForm.time}
+                      onChange={(event) => updateRaffleField("time", event.target.value)}
+                      placeholder="10:10 pm"
+                    />
+                  </Field>
+                  <label className="field fileField">
+                    <span>
+                      <ImagePlus size={16} />
+                      Imagen promocional
+                    </span>
+                  <input
+                    accept="image/*"
+                    onChange={(event) => {
+                      setRaffleImageFile(event.target.files?.[0] ?? null);
+                      setError("");
+                      setNotice("");
+                    }}
+                    type="file"
+                  />
+                  {raffleImageFile && (
+                    <small className="fileHint">
+                      Se optimizara antes de guardarse.
+                    </small>
+                  )}
+                </label>
+                </div>
+
+                <button className="primary submit" disabled={loading} type="submit">
+                  <Settings size={18} />
+                  {loading ? "Guardando..." : "Guardar sorteo"}
+                </button>
+              </form>
+
+              <section className="rafflePreview">
+                <p className="eyebrow">Vista publica</p>
+                {raffle.promoImage ? (
+                  <img src={raffle.promoImage} alt="Promocion del sorteo" />
+                ) : (
+                  <div className="promoPlaceholder">
+                    <ImagePlus size={28} />
+                  </div>
+                )}
+                <strong>{raffle.prize || "Moto"}</strong>
+                <span>Sorteo local · {raffle.time || "10:10 pm"}</span>
+                <small>{formatRaffleDate(raffle.date)}</small>
+              </section>
+            </section>
+
+            <section className="raffleDrawPanel">
               <div className="formTitle">
-                <Trophy size={22} />
+                <Sparkles size={22} />
                 <div>
-                  <h3>Detalles del sorteo</h3>
-                  <p>Estos datos se muestran al cliente en la pantalla principal.</p>
+                  <h3>Realizar sorteo local</h3>
+                  <p>Prepara la lista y selecciona un ganador al instante.</p>
                 </div>
               </div>
 
-              <div className="fieldGrid raffleFieldGrid">
-                <Field label="Que se rifa" icon={<Trophy />}>
-                  <input
-                    value={raffleForm.prize}
-                    onChange={(event) => updateRaffleField("prize", event.target.value)}
-                    placeholder="Moto"
-                    required
-                  />
-                </Field>
-                <Field label="Fecha" icon={<CalendarClock />}>
-                  <input
-                    value={raffleForm.date}
-                    onChange={(event) => updateRaffleField("date", event.target.value)}
-                    type="date"
-                  />
-                </Field>
-                <Field label="Loteria" icon={<Ticket />}>
-                  <input
-                    value={raffleForm.lottery}
-                    onChange={(event) => updateRaffleField("lottery", event.target.value)}
-                    placeholder="Loteria del Tachira Triple A"
-                  />
-                </Field>
-                <Field label="Hora" icon={<CalendarClock />}>
-                  <input
-                    value={raffleForm.time}
-                    onChange={(event) => updateRaffleField("time", event.target.value)}
-                    placeholder="10:10 pm"
-                  />
-                </Field>
-                <label className="field fileField">
-                  <span>
-                    <ImagePlus size={16} />
-                    Imagen promocional
-                  </span>
-                <input
-                  accept="image/*"
-                  onChange={(event) => {
-                    setRaffleImageFile(event.target.files?.[0] ?? null);
-                    setError("");
-                    setNotice("");
-                  }}
-                  type="file"
-                />
-                {raffleImageFile && (
-                  <small className="fileHint">
-                    Se optimizara antes de guardarse.
-                  </small>
-                )}
-              </label>
+              <div className="raffleActions">
+                <button className="primary" onClick={prepareRaffle} type="button" disabled={rafflePreparing}>
+                  {rafflePreparing ? "Preparando..." : "Preparar sorteo"}
+                </button>
+                <button
+                  className="primary danger"
+                  onClick={() => setShowDrawConfirm(true)}
+                  type="button"
+                  disabled={rafflePreparing || raffleParticipants.length === 0}
+                >
+                  Realizar sorteo
+                </button>
               </div>
 
-              <button className="primary submit" disabled={loading} type="submit">
-                <Settings size={18} />
-                {loading ? "Guardando..." : "Guardar sorteo"}
-              </button>
-            </form>
-
-            <section className="rafflePreview">
-              <p className="eyebrow">Vista publica</p>
-              {raffle.promoImage ? (
-                <img src={raffle.promoImage} alt="Promocion del sorteo" />
-              ) : (
-                <div className="promoPlaceholder">
-                  <ImagePlus size={28} />
+              {showDrawConfirm && (
+                <div className="raffleConfirm">
+                  <p>Confirma que deseas realizar el sorteo local ahora.</p>
+                  <div className="confirmActions">
+                    <button className="primary" onClick={drawRaffle} type="button" disabled={rafflePreparing}>
+                      Confirmar sorteo
+                    </button>
+                    <button className="ghostButton" onClick={() => setShowDrawConfirm(false)} type="button">
+                      Cancelar
+                    </button>
+                  </div>
                 </div>
               )}
-              <strong>{raffle.prize || "Moto"}</strong>
-              <span>{raffle.lottery || "Loteria del Tachira"} · {raffle.time || "10:10 pm"}</span>
-              <small>{formatRaffleDate(raffle.date)}</small>
+
+              <div className="raffleStatsRow">
+                <span>{raffleTotals.participants} participantes</span>
+                <span>{raffleTotals.coupons} cupones</span>
+              </div>
+
+              {raffleSelection && (
+                <div className="raffleSelection">
+                  <p className="eyebrow">Seleccion propuesta</p>
+                  <strong>{raffleSelection.first_name} {raffleSelection.last_name}</strong>
+                  <span>Cedula: {raffleSelection.national_id}</span>
+                  <small>{raffleSelection.coupon_count} cupones</small>
+                  <button
+                    className="ghostButton"
+                    type="button"
+                    onClick={() => setRaffleSelection(pickRandomParticipant(raffleParticipants))}
+                    disabled={!raffleParticipants.length}
+                  >
+                    Recalcular seleccion
+                  </button>
+                </div>
+              )}
+
+              {raffleWinner && (
+                <div className="raffleWinner">
+                  <p className="eyebrow">Ganador</p>
+                  <strong>{raffleWinner.first_name} {raffleWinner.last_name}</strong>
+                  <span>Cedula: {raffleWinner.national_id}</span>
+                  <small>{raffleWinner.coupon_count} cupones</small>
+                </div>
+              )}
+
+              <div className="raffleParticipants">
+                <p className="eyebrow">Participantes</p>
+                {raffleParticipants.length === 0 ? (
+                  <p className="empty">No hay participantes aun. Prepara el sorteo para verlos.</p>
+                ) : (
+                  <div className="tableWrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Cliente</th>
+                          <th>Cedula</th>
+                          <th>Telefono</th>
+                          <th>Cupones</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {raffleParticipants.map((participant) => (
+                          <tr key={participant.national_id}>
+                            <td>{participant.first_name} {participant.last_name}</td>
+                            <td>{participant.national_id}</td>
+                            <td>{participant.phone}</td>
+                            <td className="codeCell">{participant.coupon_count}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
             </section>
-          </section>
+          </div>
         )}
 
         {activeModule === "register" && (
@@ -816,6 +1019,9 @@ function AdminDashboard({ onLogout }) {
                   required
                 />
               </Field>
+              {customerCouponCount != null && (
+                <p className="couponCountHint">{couponCountLabel(customerCouponCount)}</p>
+              )}
               <Field label="Telefono" icon={<Phone />}>
                 <input
                   value={form.phone}
