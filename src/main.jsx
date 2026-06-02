@@ -1,22 +1,28 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
+  AtSign,
   BadgePlus,
   CalendarClock,
   CircleDollarSign,
   ClipboardList,
+  Droplets,
   Eye,
   EyeOff,
   Home,
   ImagePlus,
   Lock,
   LogOut,
+  MapPin,
   Phone,
+  RefreshCw,
   Search,
   Settings,
+  Snowflake,
   Sparkles,
   Ticket,
   Trophy,
+  Truck,
   UserRound
 } from "lucide-react";
 import "./styles.css";
@@ -202,40 +208,120 @@ function App() {
 }
 
 function CustomerHome() {
-  const [raffle, setRaffle] = useState(emptyRaffle);
-
-  useEffect(() => {
-    api("/api/raffle").then(setRaffle).catch(() => {});
-  }, []);
-
   return (
-    <main className="publicHome" style={{ "--home-image": `url(${homeSrc})` }}>
-      <section className="heroPanel">
-        <div className="heroCopy">
-          <p className="eyebrow publicEyebrow">Rifa de la moto</p>
-          <h1>{raffle.prize || "Santo Cristo"}</h1>
-          <p>
-            Registra tus datos después de tu compra y recibe tu cupón para participar en el sorteo.
-          </p>
-          <div className="raffleMeta">
-            <span><Trophy size={16} /> {raffle.prize || "Moto"}</span>
-            <span><CalendarClock size={16} /> {formatRaffleDate(raffle.date)}</span>
-            <span><Ticket size={16} /> Sorteo local · {raffle.time || "10:10 pm"}</span>
+    <div className="homePage">
+
+      {/* ── HERO ── */}
+      <section className="homeHero" style={{ "--home-image": `url(${homeSrc})` }}>
+        <div className="homeHeroContent">
+          <img className="homeHeroLogo" src={logoSrc} alt="Purificadora Santo Cristo" />
+          <p className="homeHeroEyebrow">Tovar, Mérida · Venezuela</p>
+          <h1 className="homeHeroTitle">Purificadora de Agua<br />Santo Cristo</h1>
+          <p className="homeHeroSub">Agua pura, directo a tu hogar. Calidad y frescura garantizadas.</p>
+          <div className="homeHeroActions">
+            <a className="homeCtaPrimary" href="tel:+58">
+              <Phone size={18} />
+              Contáctanos
+            </a>
+            <a className="homeCtaSecondary" href="#servicios">
+              Ver servicios
+            </a>
           </div>
-          {raffle.promoImage && (
-            <img className="homePromo" src={raffle.promoImage} alt="Promocion del sorteo" />
-          )}
-          <a className="publicButton" href="/participar">
-            <Ticket size={20} />
-            Participar en sorteo
-          </a>
+        </div>
+        <div className="homeHeroScroll" aria-hidden="true">↓</div>
+      </section>
+
+      {/* ── SERVICIOS ── */}
+      <section className="homeSection homeServices" id="servicios">
+        <div className="homeSectionInner">
+          <p className="homeSectionEyebrow">Lo que hacemos</p>
+          <h2 className="homeSectionTitle">Nuestros Servicios</h2>
+          <div className="servicesGrid">
+            <div className="serviceCard">
+              <Droplets size={36} />
+              <h3>Distribución de Agua</h3>
+              <p>Llevamos agua potable pura directamente a tu puerta con nuestro servicio de distribución confiable.</p>
+            </div>
+            <div className="serviceCard">
+              <RefreshCw size={36} />
+              <h3>Recarga de Botellones</h3>
+              <p>Recarga tu botellón con agua purificada de la más alta calidad al mejor precio.</p>
+            </div>
+            <div className="serviceCard">
+              <Truck size={36} />
+              <h3>Delivery</h3>
+              <p>Servicio de entrega rápida a domicilio en Tovar y sus alrededores. Cómodo y seguro.</p>
+            </div>
+            <div className="serviceCard">
+              <Snowflake size={36} />
+              <h3>Venta de Hielo</h3>
+              <p>Hielo de calidad para tus eventos, negocios y necesidades del día a día.</p>
+            </div>
+          </div>
         </div>
       </section>
-      <a className="adminLink" href="/admin" aria-label="Abrir administracion">
-        <Settings size={18} />
-        Admin
-      </a>
-    </main>
+
+      {/* ── HISTORIA ── */}
+      <section className="homeSection homeAbout">
+        <div className="homeSectionInner homeAboutInner">
+          <div className="homeAboutText">
+            <p className="homeSectionEyebrow homeAboutEyebrow">Nuestra historia</p>
+            <h2 className="homeSectionTitle homeAboutTitle">Comprometidos con la pureza del agua</h2>
+            <p>Somos una empresa venezolana con años de experiencia en la distribución y purificación de agua en el municipio Tovar del estado Mérida. Nuestro compromiso es llevar agua de la más alta calidad a cada familia de nuestra comunidad.</p>
+            <p>Utilizamos tecnología de filtración avanzada para garantizar que cada gota que consumes cumpla con los más altos estándares de pureza, sabor y salud.</p>
+            <div className="homeAboutBadges">
+              <span>RIF-J50585563-8</span>
+              <span>Tovar, Mérida</span>
+              <span>Venezuela</span>
+            </div>
+          </div>
+          <div className="homeAboutVisual">
+            <img src={logoSrc} alt="Purificadora de Agua Santo Cristo" />
+          </div>
+        </div>
+      </section>
+
+      {/* ── CONTACTO ── */}
+      <section className="homeSection homeContact" id="contacto">
+        <div className="homeSectionInner">
+          <p className="homeSectionEyebrow">Encuéntranos</p>
+          <h2 className="homeSectionTitle">Contacto y Ubicación</h2>
+          <div className="contactGrid">
+            <div className="contactCard">
+              <div className="contactCardIcon"><MapPin size={22} /></div>
+              <h3>Dirección</h3>
+              <p>Carrera 4ta el llano, Local 1<br />Tovar, Mérida, Venezuela</p>
+            </div>
+            <div className="contactCard">
+              <div className="contactCardIcon"><Phone size={22} /></div>
+              <h3>Teléfono</h3>
+              <p>Contáctanos directamente para pedidos, preguntas y cotizaciones.</p>
+            </div>
+            <a
+              className="contactCard contactCardIG"
+              href="https://www.instagram.com/purificadoradeaguasantocristo"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <div className="contactCardIcon contactCardIconIG"><AtSign size={22} /></div>
+              <h3>Instagram</h3>
+              <p>@purificadoradeaguasantocristo</p>
+              <span className="contactIGCta">Ver perfil →</span>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* ── FOOTER ── */}
+      <footer className="homeFooter">
+        <img className="footerLogo" src={logoSrc} alt="Santo Cristo" />
+        <div className="footerText">
+          <p>© {new Date().getFullYear()} Purificadora de Agua Santo Cristo · RIF-J50585563-8</p>
+          <p>Carrera 4ta el llano, Local 1, Tovar, Mérida, Venezuela</p>
+        </div>
+      </footer>
+
+    </div>
   );
 }
 
