@@ -1028,6 +1028,41 @@ a {
   width: 100%;
 }
 
+.comboInput {
+  display: flex;
+}
+
+.comboInput input {
+  border-bottom-left-radius: 0;
+  border-top-left-radius: 0;
+  flex: 1;
+  min-width: 0;
+  width: auto;
+}
+
+.comboSelect {
+  background: #eef5f8;
+  border: 1px solid #cadbe2;
+  border-radius: 8px 0 0 8px;
+  border-right: none;
+  color: #0e2535;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 800;
+  min-height: 46px;
+  outline: none;
+  padding: 0 10px;
+}
+
+.comboSelectWide {
+  min-width: 96px;
+}
+
+.comboInput:focus-within .comboSelect {
+  border-color: #149fe3;
+}
+
 .field input:focus,
 .searchBox input:focus {
   border-color: #149fe3;

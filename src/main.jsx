@@ -24,10 +24,36 @@ import "./styles.css";
 const logoSrc = "/santo-cristo-logo.jpeg";
 const homeSrc = "/santo-cristo-home.jpg";
 
+const COUNTRIES = [
+  { code: "+58",  flag: "🇻🇪", name: "Venezuela" },
+  { code: "+57",  flag: "🇨🇴", name: "Colombia" },
+  { code: "+593", flag: "🇪🇨", name: "Ecuador" },
+  { code: "+51",  flag: "🇵🇪", name: "Perú" },
+  { code: "+591", flag: "🇧🇴", name: "Bolivia" },
+  { code: "+54",  flag: "🇦🇷", name: "Argentina" },
+  { code: "+56",  flag: "🇨🇱", name: "Chile" },
+  { code: "+598", flag: "🇺🇾", name: "Uruguay" },
+  { code: "+595", flag: "🇵🇾", name: "Paraguay" },
+  { code: "+55",  flag: "🇧🇷", name: "Brasil" },
+  { code: "+52",  flag: "🇲🇽", name: "México" },
+  { code: "+507", flag: "🇵🇦", name: "Panamá" },
+  { code: "+506", flag: "🇨🇷", name: "Costa Rica" },
+  { code: "+504", flag: "🇭🇳", name: "Honduras" },
+  { code: "+502", flag: "🇬🇹", name: "Guatemala" },
+  { code: "+503", flag: "🇸🇻", name: "El Salvador" },
+  { code: "+505", flag: "🇳🇮", name: "Nicaragua" },
+  { code: "+53",  flag: "🇨🇺", name: "Cuba" },
+  { code: "+1809",flag: "🇩🇴", name: "Rep. Dominicana" },
+  { code: "+1",   flag: "🇺🇸", name: "Estados Unidos" },
+  { code: "+34",  flag: "🇪🇸", name: "España" },
+];
+
 const emptyForm = {
   firstName: "",
   lastName: "",
+  nationalIdPrefix: "V",
   nationalId: "",
+  phoneCode: "+58",
   phone: "",
   purchaseAmount: "",
   purchaseNote: ""
@@ -226,18 +252,18 @@ function CustomerRegister() {
   }
 
   useEffect(() => {
-    const nationalId = form.nationalId.trim();
-    if (!nationalId) {
+    const digits = form.nationalId.trim();
+    if (!digits) {
       setCouponCount(null);
       return;
     }
     const handle = window.setTimeout(() => {
-      fetchCouponCount(nationalId)
+      fetchCouponCount(`${form.nationalIdPrefix}${digits}`)
         .then((count) => setCouponCount(count))
         .catch(() => setCouponCount(null));
     }, 300);
     return () => window.clearTimeout(handle);
-  }, [form.nationalId]);
+  }, [form.nationalId, form.nationalIdPrefix]);
 
   async function submitPurchase(event) {
     event.preventDefault();
@@ -249,6 +275,7 @@ function CustomerRegister() {
         method: "POST",
         body: JSON.stringify({
           ...form,
+          nationalId: `${form.nationalIdPrefix}${form.nationalId}`,
           purchaseNote: form.purchaseNote || "Registro cliente"
         })
       });
@@ -324,25 +351,21 @@ function CustomerRegister() {
               required
             />
           </Field>
-          <Field label="Cedula" icon={<ClipboardList />}>
-            <input
-              value={form.nationalId}
-              onChange={(event) => updateField("nationalId", event.target.value)}
-              inputMode="numeric"
-              required
-            />
-          </Field>
+          <NationalIdField
+            prefix={form.nationalIdPrefix}
+            onPrefix={(v) => updateField("nationalIdPrefix", v)}
+            value={form.nationalId}
+            onChange={(v) => updateField("nationalId", v)}
+          />
           {couponCount != null && (
             <p className="couponCountHint">{couponCountLabel(couponCount)}</p>
           )}
-          <Field label="Telefono" icon={<Phone />}>
-            <input
-              value={form.phone}
-              onChange={(event) => updateField("phone", event.target.value)}
-              inputMode="tel"
-              required
-            />
-          </Field>
+          <PhoneField
+            code={form.phoneCode}
+            onCode={(v) => updateField("phoneCode", v)}
+            value={form.phone}
+            onChange={(v) => updateField("phone", v)}
+          />
           <button className="publicButton wide" disabled={loading} type="submit">
             <Ticket size={20} />
             {loading ? "Guardando..." : "Guardar y generar cupón"}
@@ -586,7 +609,10 @@ function AdminDashboard({ onLogout }) {
     try {
       const data = await api("/api/coupons", {
         method: "POST",
-        body: JSON.stringify(form)
+        body: JSON.stringify({
+          ...form,
+          nationalId: `${form.nationalIdPrefix}${form.nationalId}`
+        })
       });
       setCreatedCoupon(data.coupon);
       setStats(data.stats);
@@ -625,18 +651,18 @@ function AdminDashboard({ onLogout }) {
   }
 
   useEffect(() => {
-    const nationalId = form.nationalId.trim();
-    if (!nationalId) {
+    const digits = form.nationalId.trim();
+    if (!digits) {
       setCustomerCouponCount(null);
       return;
     }
     const handle = window.setTimeout(() => {
-      fetchCouponCount(nationalId)
+      fetchCouponCount(`${form.nationalIdPrefix}${digits}`)
         .then((count) => setCustomerCouponCount(count))
         .catch(() => setCustomerCouponCount(null));
     }, 300);
     return () => window.clearTimeout(handle);
-  }, [form.nationalId]);
+  }, [form.nationalId, form.nationalIdPrefix]);
 
   async function prepareRaffle() {
     setRafflePreparing(true);
@@ -1040,25 +1066,21 @@ function AdminDashboard({ onLogout }) {
                   required
                 />
               </Field>
-              <Field label="Cedula" icon={<ClipboardList />}>
-                <input
-                  value={form.nationalId}
-                  onChange={(event) => updateField("nationalId", event.target.value)}
-                  inputMode="numeric"
-                  required
-                />
-              </Field>
+              <NationalIdField
+                prefix={form.nationalIdPrefix}
+                onPrefix={(v) => updateField("nationalIdPrefix", v)}
+                value={form.nationalId}
+                onChange={(v) => updateField("nationalId", v)}
+              />
               {customerCouponCount != null && (
                 <p className="couponCountHint">{couponCountLabel(customerCouponCount)}</p>
               )}
-              <Field label="Telefono" icon={<Phone />}>
-                <input
-                  value={form.phone}
-                  onChange={(event) => updateField("phone", event.target.value)}
-                  inputMode="tel"
-                  required
-                />
-              </Field>
+              <PhoneField
+                code={form.phoneCode}
+                onCode={(v) => updateField("phoneCode", v)}
+                value={form.phone}
+                onChange={(v) => updateField("phone", v)}
+              />
               <Field label="Monto" icon={<CircleDollarSign />}>
                 <input
                   value={form.purchaseAmount}
@@ -1171,6 +1193,65 @@ function Field({ children, icon, label }) {
         {label}
       </span>
       {children}
+    </label>
+  );
+}
+
+function NationalIdField({ prefix, onPrefix, value, onChange }) {
+  return (
+    <label className="field">
+      <span>
+        <ClipboardList size={16} />
+        Cédula
+      </span>
+      <div className="comboInput">
+        <select
+          className="comboSelect"
+          value={prefix}
+          onChange={(e) => onPrefix(e.target.value)}
+        >
+          <option value="V">V</option>
+          <option value="E">E</option>
+        </select>
+        <input
+          inputMode="numeric"
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="Número de cédula"
+          required
+          value={value}
+        />
+      </div>
+    </label>
+  );
+}
+
+function PhoneField({ code, onCode, value, onChange }) {
+  return (
+    <label className="field">
+      <span>
+        <Phone size={16} />
+        Teléfono
+      </span>
+      <div className="comboInput">
+        <select
+          className="comboSelect comboSelectWide"
+          value={code}
+          onChange={(e) => onCode(e.target.value)}
+        >
+          {COUNTRIES.map((c) => (
+            <option key={`${c.flag}-${c.code}`} value={c.code}>
+              {c.flag} {c.code}
+            </option>
+          ))}
+        </select>
+        <input
+          inputMode="tel"
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="Número"
+          required
+          value={value}
+        />
+      </div>
     </label>
   );
 }

@@ -364,17 +364,23 @@ app.get("/api/coupons", requireAdmin, async (req, res) => {
 });
 
 app.get("/api/coupons/count", async (req, res) => {
-  const nationalId = normalizeDigits(req.query.nationalId);
-  if (!nationalId) return res.json({ nationalId: "", count: 0 });
+  const raw = clean(req.query.nationalId).toUpperCase();
+  if (!raw) return res.json({ nationalId: "", count: 0 });
+  const digits = raw.replace(/[^\d]/g, "");
+  if (!digits) return res.json({ nationalId: raw, count: 0 });
   const coupons = await loadCoupons();
-  const count = coupons.filter((coupon) => coupon.national_id === nationalId).length;
-  res.json({ nationalId, count });
+  const count = coupons.filter((coupon) =>
+    coupon.national_id === raw ||
+    coupon.national_id.replace(/[^\d]/g, "") === digits
+  ).length;
+  res.json({ nationalId: raw, count });
 });
 
 app.post("/api/coupons", async (req, res) => {
   const firstName = clean(req.body.firstName);
   const lastName = clean(req.body.lastName);
-  const nationalId = normalizeDigits(req.body.nationalId);
+  const nationalId = clean(req.body.nationalId).toUpperCase();
+  const nationalIdDigits = nationalId.replace(/[^\d]/g, "");
   const phone = normalizeDigits(req.body.phone);
   const purchaseNote = clean(req.body.purchaseNote);
   const purchaseAmount =
@@ -386,7 +392,7 @@ app.post("/api/coupons", async (req, res) => {
     return res.status(400).json({ error: "Nombre, apellido, cedula y telefono son obligatorios." });
   }
 
-  if (nationalId.length < 5) {
+  if (nationalIdDigits.length < 5) {
     return res.status(400).json({ error: "La cedula debe tener al menos 5 digitos." });
   }
 
