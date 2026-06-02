@@ -59,15 +59,6 @@ a {
   z-index: 1;
 }
 
-.homeHeroLogo {
-  border: 5px solid rgba(255, 255, 255, 0.9);
-  border-radius: 50%;
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
-  height: 130px;
-  object-fit: cover;
-  width: 130px;
-}
-
 .homeHeroEyebrow {
   color: #75caff;
   font-size: 0.75rem;
@@ -344,6 +335,63 @@ a {
 
 .contactIGCta {
   color: #833ab4;
+  font-size: 0.88rem;
+  font-weight: 900;
+  margin-top: 4px;
+}
+
+/* ─── WHATSAPP FLOAT ── */
+.whatsappFloat {
+  align-items: center;
+  background: #25d366;
+  border-radius: 50%;
+  bottom: 24px;
+  box-shadow: 0 8px 28px rgba(37, 211, 102, 0.48);
+  color: #ffffff;
+  display: flex;
+  height: 60px;
+  justify-content: center;
+  position: fixed;
+  right: 24px;
+  transition: transform 0.18s, box-shadow 0.18s;
+  width: 60px;
+  z-index: 200;
+}
+
+.whatsappFloat:hover {
+  box-shadow: 0 14px 40px rgba(37, 211, 102, 0.65);
+  transform: scale(1.1);
+}
+
+/* ─── CONTACT CARD WHATSAPP ── */
+.contactCardWA {
+  background: linear-gradient(135deg, #f0fff5 0%, #e2f9eb 100%);
+  border-color: #9ed9b8;
+  color: inherit;
+  text-decoration: none;
+}
+
+.contactCardWA:hover {
+  box-shadow: 0 16px 40px rgba(37, 130, 70, 0.12);
+  transform: translateY(-2px);
+}
+
+.contactCardIconWA {
+  background: #25d366;
+  color: #ffffff;
+}
+
+.contactCardWA h3 {
+  color: #165c30;
+}
+
+.contactCardWA p {
+  color: #2e6642;
+  font-weight: 800;
+}
+
+.contactWACta {
+  color: #165c30;
   font-size: 0.88rem;
   font-weight: 900;
   margin-top: 4px;
