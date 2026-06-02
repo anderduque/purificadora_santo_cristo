@@ -264,16 +264,21 @@ async function generateCouponCode(digits, coupons) {
   throw new Error("No se pudo generar un cupon unico. Intenta de nuevo.");
 }
 
-async function listCoupons({ query = "", limit = 80 } = {}) {
+async function listCoupons({ query = "", date = "", limit = 80 } = {}) {
   const coupons = await loadCoupons();
   const safeQuery = query.toLowerCase();
-  const filtered = safeQuery
+  let filtered = safeQuery
     ? coupons.filter((coupon) =>
         `${coupon.first_name} ${coupon.last_name} ${coupon.national_id} ${coupon.phone} ${coupon.coupon_code}`
           .toLowerCase()
           .includes(safeQuery)
       )
     : coupons;
+  if (date) {
+    filtered = filtered.filter((coupon) =>
+      String(coupon.created_at_iso || coupon.created_at).startsWith(date)
+    );
+  }
   return filtered
     .sort((left, right) => String(right.created_at).localeCompare(String(left.created_at)))
     .slice(0, Math.min(limit, 500));
@@ -359,8 +364,20 @@ app.get("/api/stats", requireAdmin, async (_req, res) => {
 
 app.get("/api/coupons", requireAdmin, async (req, res) => {
   const query = clean(req.query.q).toLowerCase();
+  const date = clean(req.query.date);
   const limit = Math.min(Number(req.query.limit ?? 80), 300);
-  res.json(await listCoupons({ query, limit }));
+  res.json(await listCoupons({ query, date, limit }));
+});
+
+app.delete("/api/coupons/:code", requireAdmin, async (req, res) => {
+  const code = clean(req.params.code);
+  if (!code) return res.status(400).json({ error: "Codigo de cupon requerido." });
+  const coupons = await loadCoupons();
+  const index = coupons.findIndex((c) => c.coupon_code === code);
+  if (index === -1) return res.status(404).json({ error: "Cupon no encontrado." });
+  coupons.splice(index, 1);
+  await saveCoupons(coupons);
+  res.json({ deleted: true, coupon_code: code });
 });
 
 app.get("/api/coupons/count", async (req, res) => {

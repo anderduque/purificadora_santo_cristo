@@ -494,6 +494,7 @@ function AdminDashboard({ onLogout }) {
   const [coupons, setCoupons] = useState([]);
   const [createdCoupon, setCreatedCoupon] = useState(null);
   const [query, setQuery] = useState("");
+  const [dateFilter, setDateFilter] = useState("");
   const [loading, setLoading] = useState(false);
   const [raffle, setRaffle] = useState(emptyRaffle);
   const [raffleForm, setRaffleForm] = useState(emptyRaffle);
@@ -525,13 +526,34 @@ function AdminDashboard({ onLogout }) {
 
   useEffect(() => {
     const handle = window.setTimeout(() => {
-      api(`/api/coupons?q=${encodeURIComponent(query)}`)
+      const params = new URLSearchParams({ q: query });
+      if (dateFilter) params.set("date", dateFilter);
+      api(`/api/coupons?${params}`)
         .then(setCoupons)
         .catch((err) => setError(err.message));
     }, 250);
-
     return () => window.clearTimeout(handle);
-  }, [query]);
+  }, [query, dateFilter]);
+
+  async function deleteCoupon(code) {
+    if (!window.confirm(`¿Eliminar el cupón ${code}? Esta acción no se puede deshacer.`)) return;
+    setError("");
+    setNotice("");
+    try {
+      await api(`/api/coupons/${code}`, { method: "DELETE" });
+      const params = new URLSearchParams({ q: query });
+      if (dateFilter) params.set("date", dateFilter);
+      const [updated, statsData] = await Promise.all([
+        api(`/api/coupons?${params}`),
+        api("/api/stats")
+      ]);
+      setCoupons(updated);
+      setStats(statsData);
+      setNotice(`Cupón ${code} eliminado.`);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
 
   const fullName = useMemo(() => {
     return `${form.firstName} ${form.lastName}`.trim() || "Nuevo cliente";
@@ -1137,14 +1159,27 @@ function AdminDashboard({ onLogout }) {
               <p className="eyebrow">Participantes</p>
               <h2>Cupones registrados</h2>
             </div>
-            <label className="searchBox">
-              <Search size={18} />
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Buscar por nombre, cedula, telefono o cupon"
-              />
-            </label>
+            <div className="listFilters">
+              <label className="searchBox">
+                <Search size={18} />
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Buscar por nombre, cedula, telefono o cupon"
+                />
+              </label>
+              <label className="dateFilterBox">
+                <CalendarClock size={18} />
+                <input
+                  type="date"
+                  value={dateFilter}
+                  onChange={(event) => setDateFilter(event.target.value)}
+                />
+                {dateFilter && (
+                  <button className="dateFilterClear" onClick={() => setDateFilter("")} type="button">×</button>
+                )}
+              </label>
+            </div>
           </div>
 
           <div className="tableWrap">
@@ -1167,7 +1202,15 @@ function AdminDashboard({ onLogout }) {
                     <td>
                       <div className="couponBadges">
                         {participant.codes.map((code) => (
-                          <span key={code} className="couponBadge">{code}</span>
+                          <span key={code} className="couponBadge">
+                            {code}
+                            <button
+                              className="couponBadgeDelete"
+                              onClick={() => deleteCoupon(code)}
+                              title="Eliminar cupón"
+                              type="button"
+                            >×</button>
+                          </span>
                         ))}
                       </div>
                     </td>
