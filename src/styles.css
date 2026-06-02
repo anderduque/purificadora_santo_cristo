@@ -807,6 +807,11 @@ a {
   padding: 10px 12px;
 }
 
+.fileHint {
+  color: #60727c;
+  font-weight: 800;
+}
+
 .rafflePreview {
   background: #122238;
   border-radius: 8px;

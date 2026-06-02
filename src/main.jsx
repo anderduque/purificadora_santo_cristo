@@ -66,13 +66,82 @@ function money(value) {
 
 async function api(path, options) {
   const isFormData = options?.body instanceof FormData;
-  const response = await fetch(path, {
-    headers: isFormData ? undefined : { "Content-Type": "application/json" },
-    ...options
-  });
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 25000);
+
+  let response;
+  try {
+    response = await fetch(path, {
+      headers: isFormData ? undefined : { "Content-Type": "application/json" },
+      signal: controller.signal,
+      ...options
+    });
+  } catch (error) {
+    if (error.name === "AbortError") {
+      throw new Error("La solicitud tardo demasiado. Prueba con una imagen mas pequena.");
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
+  }
   const data = await response.json();
   if (!response.ok) throw new Error(data.error ?? "Ocurrio un error.");
   return data;
+}
+
+function compressImage(file) {
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith("image/")) {
+      reject(new Error("Selecciona una imagen valida."));
+      return;
+    }
+
+    const image = new Image();
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      image.src = reader.result;
+    };
+    reader.onerror = () => reject(new Error("No se pudo leer la imagen."));
+
+    image.onload = () => {
+      const maxSide = 1200;
+      const scale = Math.min(1, maxSide / Math.max(image.width, image.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(image.width * scale);
+      canvas.height = Math.round(image.height * scale);
+
+      const context = canvas.getContext("2d");
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+      let quality = 0.78;
+      const tryExport = () => {
+        canvas.toBlob((blob) => {
+          if (!blob) {
+            reject(new Error("No se pudo preparar la imagen."));
+            return;
+          }
+
+          if (blob.size <= 700 * 1024 || quality <= 0.42) {
+            if (blob.size > 900 * 1024) {
+              reject(new Error("La imagen sigue siendo muy pesada. Usa una imagen mas pequena."));
+              return;
+            }
+            resolve(new File([blob], "promocion-sorteo.jpg", { type: "image/jpeg" }));
+            return;
+          }
+
+          quality -= 0.12;
+          tryExport();
+        }, "image/jpeg", quality);
+      };
+
+      tryExport();
+    };
+
+    image.onerror = () => reject(new Error("La imagen seleccionada no se pudo cargar."));
+    reader.readAsDataURL(file);
+  });
 }
 
 function App() {
@@ -420,8 +489,9 @@ function AdminDashboard({ onLogout }) {
       });
 
       if (raffleImageFile) {
+        const compressedImage = await compressImage(raffleImageFile);
         const uploadData = new FormData();
-        uploadData.append("promoImage", raffleImageFile);
+        uploadData.append("promoImage", compressedImage);
         raffleData = await api("/api/raffle/promo-image", {
           method: "POST",
           body: uploadData
@@ -671,12 +741,21 @@ function AdminDashboard({ onLogout }) {
                     <ImagePlus size={16} />
                     Imagen promocional
                   </span>
-                  <input
-                    accept="image/*"
-                    onChange={(event) => setRaffleImageFile(event.target.files?.[0] ?? null)}
-                    type="file"
-                  />
-                </label>
+                <input
+                  accept="image/*"
+                  onChange={(event) => {
+                    setRaffleImageFile(event.target.files?.[0] ?? null);
+                    setError("");
+                    setNotice("");
+                  }}
+                  type="file"
+                />
+                {raffleImageFile && (
+                  <small className="fileHint">
+                    Se optimizara antes de guardarse.
+                  </small>
+                )}
+              </label>
               </div>
 
               <button className="primary submit" disabled={loading} type="submit">
