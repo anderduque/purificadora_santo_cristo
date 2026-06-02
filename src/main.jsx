@@ -223,12 +223,12 @@ function CustomerHome() {
           <div className="homeHeroActions">
             <a
               className="homeCtaPrimary"
-              href={`https://wa.me/${WA_NUMBER}?text=${encodeURIComponent("Hola 👋, me gustaría conocer más sobre sus servicios de agua purificada")}`}
+              href={`https://wa.me/${WA_NUMBER}?text=${encodeURIComponent("Hola 🚚, quisiera solicitar un delivery:\n\n• ¿Recarga o botellón nuevo?: \n• Dirección de entrega: \n• Método de pago: (Efectivo / Transferencia)")}`}
               target="_blank"
               rel="noopener noreferrer"
             >
-              <Phone size={18} />
-              Contáctanos
+              <Truck size={18} />
+              Pedir Delivery
             </a>
             <a className="homeCtaSecondary" href="#servicios">
               Ver servicios
