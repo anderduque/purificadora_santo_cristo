@@ -684,6 +684,13 @@ function AdminDashboard({ onLogout }) {
       metric: raffle.prize || "Moto"
     },
     {
+      id: "draw",
+      icon: <Sparkles />,
+      title: "Realizar sorteo",
+      text: "Preparar participantes y elegir ganador local.",
+      metric: `${raffleTotals.participants} participantes`
+    },
+    {
       id: "settings",
       icon: <Settings />,
       title: "Formato del cupón",
@@ -805,8 +812,7 @@ function AdminDashboard({ onLogout }) {
         )}
 
         {activeModule === "raffle" && (
-          <div className="raffleStack">
-            <section className="raffleSettings">
+          <section className="raffleSettings">
               <form className="formSurface raffleForm" onSubmit={saveRaffle}>
                 <div className="formTitle">
                   <Trophy size={22} />
@@ -880,107 +886,112 @@ function AdminDashboard({ onLogout }) {
                 <span>Sorteo local · {raffle.time || "10:10 pm"}</span>
                 <small>{formatRaffleDate(raffle.date)}</small>
               </section>
-            </section>
+          </section>
+        )}
 
-            <section className="raffleDrawPanel">
-              <div className="formTitle">
-                <Sparkles size={22} />
-                <div>
-                  <h3>Realizar sorteo local</h3>
-                  <p>Prepara la lista y selecciona un ganador al instante.</p>
-                </div>
+        {activeModule === "draw" && (
+          <section className="raffleDrawPanel">
+            <div className="formTitle">
+              <Sparkles size={22} />
+              <div>
+                <h3>Realizar sorteo local</h3>
+                <p>Prepara la lista y selecciona un ganador al instante.</p>
               </div>
+            </div>
 
-              <div className="raffleActions">
-                <button className="primary" onClick={prepareRaffle} type="button" disabled={rafflePreparing}>
-                  {rafflePreparing ? "Preparando..." : "Preparar sorteo"}
-                </button>
-                <button
-                  className="primary danger"
-                  onClick={() => setShowDrawConfirm(true)}
-                  type="button"
-                  disabled={rafflePreparing || raffleParticipants.length === 0}
-                >
-                  Realizar sorteo
-                </button>
-              </div>
+            <div className="raffleActions">
+              <button className="primary" onClick={prepareRaffle} type="button" disabled={rafflePreparing}>
+                {rafflePreparing ? "Preparando..." : "Preparar sorteo"}
+              </button>
+              <button
+                className="primary danger"
+                onClick={() => setShowDrawConfirm(true)}
+                type="button"
+                disabled={rafflePreparing || raffleParticipants.length === 0}
+              >
+                Realizar sorteo
+              </button>
+            </div>
 
-              {showDrawConfirm && (
-                <div className="raffleConfirm">
-                  <p>Confirma que deseas realizar el sorteo local ahora.</p>
-                  <div className="confirmActions">
-                    <button className="primary" onClick={drawRaffle} type="button" disabled={rafflePreparing}>
-                      Confirmar sorteo
-                    </button>
-                    <button className="ghostButton" onClick={() => setShowDrawConfirm(false)} type="button">
-                      Cancelar
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              <div className="raffleStatsRow">
-                <span>{raffleTotals.participants} participantes</span>
-                <span>{raffleTotals.coupons} cupones</span>
-              </div>
-
-              {raffleSelection && (
-                <div className="raffleSelection">
-                  <p className="eyebrow">Seleccion propuesta</p>
-                  <strong>{raffleSelection.first_name} {raffleSelection.last_name}</strong>
-                  <span>Cedula: {raffleSelection.national_id}</span>
-                  <small>{raffleSelection.coupon_count} cupones</small>
-                  <button
-                    className="ghostButton"
-                    type="button"
-                    onClick={() => setRaffleSelection(pickRandomParticipant(raffleParticipants))}
-                    disabled={!raffleParticipants.length}
-                  >
-                    Recalcular seleccion
+            {showDrawConfirm && (
+              <div className="raffleConfirm">
+                <p>Confirma que deseas realizar el sorteo local ahora.</p>
+                <div className="confirmActions">
+                  <button className="primary" onClick={drawRaffle} type="button" disabled={rafflePreparing}>
+                    Confirmar sorteo
+                  </button>
+                  <button className="ghostButton" onClick={() => setShowDrawConfirm(false)} type="button">
+                    Cancelar
                   </button>
                 </div>
-              )}
+              </div>
+            )}
 
-              {raffleWinner && (
-                <div className="raffleWinner">
-                  <p className="eyebrow">Ganador</p>
-                  <strong>{raffleWinner.first_name} {raffleWinner.last_name}</strong>
-                  <span>Cedula: {raffleWinner.national_id}</span>
-                  <small>{raffleWinner.coupon_count} cupones</small>
+            <div className="raffleStatsRow">
+              <span>{raffleTotals.participants} participantes, {raffleTotals.coupons} cupones</span>
+            </div>
+
+            {raffleSelection && (
+              <div className="raffleSelection">
+                <p className="eyebrow">Seleccion propuesta</p>
+                <strong>{raffleSelection.first_name} {raffleSelection.last_name}</strong>
+                <span>Cedula: {raffleSelection.national_id}</span>
+                <small>{raffleSelection.coupon_count} cupones</small>
+                <button
+                  className="ghostButton"
+                  type="button"
+                  onClick={() => setRaffleSelection(pickRandomParticipant(raffleParticipants))}
+                  disabled={!raffleParticipants.length}
+                >
+                  Recalcular seleccion
+                </button>
+              </div>
+            )}
+
+            {raffleWinner && (
+              <div className="raffleWinner">
+                <p className="eyebrow">Ganador</p>
+                <strong>{raffleWinner.first_name} {raffleWinner.last_name}</strong>
+                <span>Cedula: {raffleWinner.national_id}</span>
+                <small>{raffleWinner.coupon_count} cupones</small>
+              </div>
+            )}
+
+            <div className="raffleParticipants">
+              <div className="raffleParticipantsHeader">
+                <p className="eyebrow">Participantes</p>
+                <span className="raffleMetaInline">
+                  {raffleTotals.participants} participantes, {raffleTotals.coupons} cupones
+                </span>
+              </div>
+              {raffleParticipants.length === 0 ? (
+                <p className="empty">No hay participantes aun. Prepara el sorteo para verlos.</p>
+              ) : (
+                <div className="tableWrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Cliente</th>
+                        <th>Cedula</th>
+                        <th>Telefono</th>
+                        <th>Cupones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {raffleParticipants.map((participant) => (
+                        <tr key={participant.national_id}>
+                          <td>{participant.first_name} {participant.last_name}</td>
+                          <td>{participant.national_id}</td>
+                          <td>{participant.phone}</td>
+                          <td className="codeCell">{participant.coupon_count}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
-
-              <div className="raffleParticipants">
-                <p className="eyebrow">Participantes</p>
-                {raffleParticipants.length === 0 ? (
-                  <p className="empty">No hay participantes aun. Prepara el sorteo para verlos.</p>
-                ) : (
-                  <div className="tableWrap">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Cliente</th>
-                          <th>Cedula</th>
-                          <th>Telefono</th>
-                          <th>Cupones</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {raffleParticipants.map((participant) => (
-                          <tr key={participant.national_id}>
-                            <td>{participant.first_name} {participant.last_name}</td>
-                            <td>{participant.national_id}</td>
-                            <td>{participant.phone}</td>
-                            <td className="codeCell">{participant.coupon_count}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            </section>
-          </div>
+            </div>
+          </section>
         )}
 
         {activeModule === "register" && (

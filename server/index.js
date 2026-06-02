@@ -1,10 +1,18 @@
 import express from "express";
-import "dotenv/config";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import multer from "multer";
 import path from "node:path";
+import dotenv from "dotenv";
 import { Storage } from "@google-cloud/storage";
+
+const envPath = path.resolve(process.cwd(), ".env");
+const envExamplePath = path.resolve(process.cwd(), ".env.example");
+if (fs.existsSync(envPath)) {
+  dotenv.config({ path: envPath });
+} else if (fs.existsSync(envExamplePath)) {
+  dotenv.config({ path: envExamplePath });
+}
 
 const port = Number(process.env.PORT ?? 4173);
 const adminUser = process.env.ADMIN_USER ?? "admin";
@@ -85,7 +93,7 @@ function signSession(payload) {
 function createSessionToken(username) {
   const payload = Buffer.from(JSON.stringify({
     username,
-    expiresAt: Date.now() + 8 * 60 * 60 * 1000
+    expiresAt: Date.now() + 15 * 60 * 1000
   })).toString("base64url");
   return `${payload}.${signSession(payload)}`;
 }
@@ -331,7 +339,7 @@ app.post("/api/auth/login", (req, res) => {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
-    maxAge: 8 * 60 * 60 * 1000
+    maxAge: 15 * 60 * 1000
   });
   res.json({ authenticated: true });
 });

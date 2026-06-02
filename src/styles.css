@@ -42,7 +42,7 @@ a {
 .publicHome {
   background:
     linear-gradient(180deg, rgba(7, 13, 20, 0.08) 0%, rgba(7, 13, 20, 0.36) 48%, rgba(7, 13, 20, 0.88) 100%),
-    var(--home-image) center / cover;
+    var(--home-image) center / cover no-repeat;
   align-items: end;
 }
 
@@ -73,9 +73,11 @@ a {
 
 .heroLogo {
   aspect-ratio: 1;
-  border: 10px solid #ffffff;
-  border-radius: 50%;
+  border: 6px solid #ffffff;
+  border-radius: 18px;
   box-shadow: 0 28px 80px rgba(0, 0, 0, 0.38);
+  object-fit: contain;
+  padding: 10px;
   width: 100%;
 }
 
@@ -92,7 +94,12 @@ a {
   padding: clamp(20px, 4vw, 34px);
 }
 
-.heroCopy h1,
+.heroCopy h1 {
+  font-size: clamp(2rem, 5vw, 3.6rem);
+  line-height: 1.05;
+  margin: 0;
+}
+
 .customerFormPanel h1,
 .successPanel h1 {
   font-size: clamp(2.7rem, 7vw, 5.8rem);
@@ -118,10 +125,11 @@ a {
 
 .raffleMeta span {
   align-items: center;
-  background: rgba(255, 255, 255, 0.11);
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(8, 106, 168, 0.78);
+  border: 1px solid rgba(117, 202, 255, 0.7);
   border-radius: 8px;
-  color: #eef8ff;
+  box-shadow: 0 10px 24px rgba(2, 109, 174, 0.3);
+  color: #ffffff;
   display: inline-flex;
   font-weight: 800;
   gap: 7px;
@@ -129,16 +137,21 @@ a {
   padding: 0 12px;
 }
 
+.raffleMeta span svg {
+  color: #ffeb9c;
+}
+
 .homePromo {
-  border: 2px solid rgba(255, 255, 255, 0.72);
-  border-radius: 8px;
-  max-height: 180px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 10px;
+  max-height: 280px;
   object-fit: cover;
-  width: min(100%, 360px);
+  width: 100%;
 }
 
 .publicEyebrow {
   color: #75caff;
+  letter-spacing: 4px;
 }
 
 .publicButton,
@@ -862,6 +875,98 @@ a {
   color: #a8c4d8;
 }
 
+.raffleDrawPanel {
+  background: #ffffff;
+  border: 1px solid #d6e5ec;
+  border-radius: 8px;
+  box-shadow: 0 18px 45px rgba(20, 60, 80, 0.08);
+  display: grid;
+  gap: 18px;
+  padding: 22px;
+}
+
+.raffleActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.raffleConfirm {
+  align-items: center;
+  background: #f2f8fb;
+  border: 1px solid #d6e5ec;
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.confirmActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.raffleStatsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-start;
+}
+
+.raffleStatsRow span {
+  background: #f2f8fb;
+  border: 1px solid #d6e5ec;
+  border-radius: 8px;
+  color: #344f61;
+  font-weight: 900;
+  padding: 8px 12px;
+}
+
+.raffleSelection,
+.raffleWinner {
+  background: #111b2a;
+  border-radius: 8px;
+  color: #ffffff;
+  display: grid;
+  gap: 6px;
+  padding: 16px;
+}
+
+.raffleSelection .eyebrow,
+.raffleWinner .eyebrow {
+  color: #75caff;
+}
+
+.raffleSelection strong,
+.raffleWinner strong {
+  font-size: 1.4rem;
+}
+
+.raffleSelection small,
+.raffleWinner small {
+  color: #c9deee;
+}
+
+.raffleParticipants {
+  display: grid;
+  gap: 12px;
+}
+
+.raffleParticipantsHeader {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.raffleMetaInline {
+  color: #60727c;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
 .formSurface,
 .listSurface,
 .couponPreview {
@@ -1056,90 +1161,6 @@ th {
   .heroPanel {
     grid-template-columns: 1fr;
   }
-
-
-    .raffleStack {
-      display: grid;
-      gap: 20px;
-    }
-
-    .raffleDrawPanel {
-      background: #ffffff;
-      border: 1px solid #d6e5ec;
-      border-radius: 8px;
-      box-shadow: 0 18px 45px rgba(20, 60, 80, 0.08);
-      display: grid;
-      gap: 18px;
-      padding: 22px;
-    }
-
-    .raffleActions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-
-    .raffleConfirm {
-      align-items: center;
-      background: #f2f8fb;
-      border: 1px solid #d6e5ec;
-      border-radius: 8px;
-      display: grid;
-      gap: 12px;
-      padding: 16px;
-    }
-
-    .confirmActions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-
-    .raffleStatsRow {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      justify-content: flex-start;
-    }
-
-    .raffleStatsRow span {
-      background: #f2f8fb;
-      border: 1px solid #d6e5ec;
-      border-radius: 8px;
-      color: #344f61;
-      font-weight: 900;
-      padding: 8px 12px;
-    }
-
-    .raffleSelection,
-    .raffleWinner {
-      background: #111b2a;
-      border-radius: 8px;
-      color: #ffffff;
-      display: grid;
-      gap: 6px;
-      padding: 16px;
-    }
-
-    .raffleSelection .eyebrow,
-    .raffleWinner .eyebrow {
-      color: #75caff;
-    }
-
-    .raffleSelection strong,
-    .raffleWinner strong {
-      font-size: 1.4rem;
-    }
-
-    .raffleSelection small,
-    .raffleWinner small {
-      color: #c9deee;
-    }
-
-    .raffleParticipants {
-      display: grid;
-      gap: 12px;
-    }
   .moduleGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1159,6 +1180,43 @@ th {
 
   .sidebar {
     border-bottom: 6px solid #149fe3;
+  }
+
+  .publicHome {
+    background:
+      linear-gradient(180deg, rgba(7, 13, 20, 0.1) 0%, rgba(7, 13, 20, 0.45) 55%, rgba(7, 13, 20, 0.92) 100%),
+      var(--home-image) center / cover no-repeat;
+  }
+}
+
+@media (max-width: 900px) {
+  .adminSidebar {
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .brand {
+    justify-content: center;
+  }
+
+  .moduleNav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .moduleNav button {
+    justify-content: center;
+    text-align: center;
+  }
+
+  .adminTopbar {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .adminStatus {
+    justify-content: flex-start;
   }
 }
 
@@ -1226,3 +1284,61 @@ th {
     letter-spacing: 3px;
   }
 }
+
+@media (max-width: 520px) {
+  .heroCopy h1,
+  .customerFormPanel h1,
+  .successPanel h1,
+  .adminLoginCard h1 {
+    font-size: 2.1rem;
+    line-height: 1.05;
+  }
+
+  .heroCopy p,
+  .formLead,
+  .successPanel p,
+  .adminLoginCard > p {
+    font-size: 0.98rem;
+  }
+
+  .publicButton,
+  .ghostButton,
+  .backButton,
+  .adminLink,
+  .sidebarHome,
+  .primary,
+  .loginButton {
+    min-height: 44px;
+    width: 100%;
+  }
+
+  .adminSidebar {
+    padding: 14px;
+  }
+
+  .moduleNav {
+    grid-template-columns: 1fr;
+  }
+
+  .brand {
+    justify-content: center;
+    text-align: center;
+  }
+
+  .brandImage {
+    height: 54px;
+    width: 54px;
+  }
+
+  .formSurface,
+  .listSurface,
+  .couponPreview,
+  .raffleDrawPanel {
+    padding: 16px;
+  }
+
+  table {
+    min-width: 640px;
+  }
+}
+
