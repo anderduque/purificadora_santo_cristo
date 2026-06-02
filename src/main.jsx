@@ -211,11 +211,13 @@ function App() {
 function CustomerHome() {
   return (
     <div className="homePage">
+      <HomeNav />
+      <HomeInfoBar />
 
       {/* ── HERO ── */}
       <section className="homeHero" style={{ "--home-image": `url(${homeSrc})` }}>
         <div className="homeHeroContent">
-          <p className="homeHeroEyebrow">Tovar, Mérida · Venezuela</p>
+          <p className="homeHeroEyebrow">Agua pura · Tovar, Mérida · Venezuela</p>
           <h1 className="homeHeroTitle">Purificadora de Agua<br />Santo Cristo</h1>
           <p className="homeHeroSub">Agua pura, directo a tu hogar. Calidad y frescura garantizadas.</p>
           <div className="homeHeroActions">
@@ -233,7 +235,6 @@ function CustomerHome() {
             </a>
           </div>
         </div>
-        <div className="homeHeroScroll" aria-hidden="true">↓</div>
       </section>
 
       {/* ── SERVICIOS ── */}
@@ -267,7 +268,7 @@ function CustomerHome() {
       </section>
 
       {/* ── HISTORIA ── */}
-      <section className="homeSection homeAbout">
+      <section className="homeSection homeAbout" id="nosotros">
         <div className="homeSectionInner homeAboutInner">
           <div className="homeAboutText">
             <p className="homeSectionEyebrow homeAboutEyebrow">Nuestra historia</p>
@@ -291,33 +292,46 @@ function CustomerHome() {
         <div className="homeSectionInner">
           <p className="homeSectionEyebrow">Encuéntranos</p>
           <h2 className="homeSectionTitle">Contacto y Ubicación</h2>
-          <div className="contactGrid">
-            <div className="contactCard">
-              <div className="contactCardIcon"><MapPin size={22} /></div>
-              <h3>Dirección</h3>
-              <p>Carrera 4ta el llano, Local 1<br />Tovar, Mérida, Venezuela</p>
-            </div>
+          <div className="contactStrip">
             <a
-              className="contactCard contactCardWA"
-              href={`https://wa.me/${WA_NUMBER}?text=${encodeURIComponent("Hola, quisiera hacer un pedido o consultar precios 🛒")}`}
-              target="_blank"
+              className="contactStripItem"
+              href="https://maps.google.com/?q=Carrera+4ta+el+llano,+Local+1,+Tovar,+M%C3%A9rida,+Venezuela"
               rel="noopener noreferrer"
+              target="_blank"
             >
-              <div className="contactCardIcon contactCardIconWA"><Phone size={22} /></div>
-              <h3>WhatsApp</h3>
-              <p>+58 414-759-9752</p>
-              <span className="contactWACta">Escribir por WhatsApp →</span>
+              <div className="contactStripIcon"><MapPin size={22} /></div>
+              <div>
+                <span className="contactStripLabel">Dirección</span>
+                <span className="contactStripValue">Carrera 4ta el llano, Local 1<br />Tovar, Mérida, Venezuela</span>
+              </div>
             </a>
             <a
-              className="contactCard contactCardIG"
-              href="https://www.instagram.com/purificadoradeaguasantocristo"
-              target="_blank"
+              className="contactStripItem"
+              href={`https://wa.me/${WA_NUMBER}?text=${encodeURIComponent("Hola, quisiera hacer un pedido o consultar precios 🛒")}`}
               rel="noopener noreferrer"
+              target="_blank"
             >
-              <div className="contactCardIcon contactCardIconIG"><AtSign size={22} /></div>
-              <h3>Instagram</h3>
-              <p>@purificadoradeaguasantocristo</p>
-              <span className="contactIGCta">Ver perfil →</span>
+              <div className="contactStripIcon contactStripIconWA"><Phone size={22} /></div>
+              <div>
+                <span className="contactStripLabel">WhatsApp</span>
+                <span className="contactStripValue">+58 414-759-9752</span>
+              </div>
+            </a>
+            <a
+              className="contactStripItem contactStripItemIG"
+              href="https://www.instagram.com/purificadoradeaguasantocristo"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              <div className="contactStripIcon contactStripIconIG">
+                <svg fill="currentColor" height="22" viewBox="0 0 24 24" width="22">
+                  <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
+                </svg>
+              </div>
+              <div>
+                <span className="contactStripLabel">Instagram</span>
+                <span className="contactStripValue contactStripIGHandle">@purificadoradeaguasantocristo</span>
+              </div>
             </a>
           </div>
         </div>
@@ -334,6 +348,65 @@ function CustomerHome() {
         </div>
       </footer>
 
+    </div>
+  );
+}
+
+function HomeNav() {
+  return (
+    <nav className="homeNav">
+      <div className="homeNavBrand">
+        <img className="homeNavLogo" src={logoSrc} alt="Santo Cristo" />
+        <div className="homeNavText">
+          <strong className="homeNavName">Purificadora Santo Cristo</strong>
+          <span className="homeNavTagline">Distribución y purificación de agua</span>
+        </div>
+      </div>
+      <div className="homeNavLinks">
+        <a href="#servicios">Servicios</a>
+        <a href="#nosotros">Nosotros</a>
+        <a href="#contacto">Contacto</a>
+        <a
+          className="homeNavCta"
+          href={`https://wa.me/${WA_NUMBER}?text=${encodeURIComponent("Hola 👋, me gustaría conocer más sobre sus servicios")}`}
+          rel="noopener noreferrer"
+          target="_blank"
+        >Contáctanos</a>
+      </div>
+    </nav>
+  );
+}
+
+function HomeInfoBar() {
+  return (
+    <div className="homeInfoBar">
+      <a
+        className="homeInfoItem"
+        href="https://maps.google.com/?q=Carrera+4ta+el+llano,+Local+1,+Tovar,+M%C3%A9rida,+Venezuela"
+        rel="noopener noreferrer"
+        target="_blank"
+      >
+        <MapPin size={14} />
+        Carrera 4ta el llano, Local 1 · Tovar, Mérida
+      </a>
+      <a
+        className="homeInfoItem"
+        href={`https://wa.me/${WA_NUMBER}?text=${encodeURIComponent("Hola, quisiera hacer un pedido 🛒")}`}
+        rel="noopener noreferrer"
+        target="_blank"
+      >
+        <Phone size={14} />
+        +58 414-759-9752
+      </a>
+      <a
+        className="homeInfoItem"
+        href="https://www.instagram.com/purificadoradeaguasantocristo"
+        rel="noopener noreferrer"
+        target="_blank"
+      >
+        <AtSign size={14} />
+        @purificadoradeaguasantocristo
+      </a>
     </div>
   );
 }
