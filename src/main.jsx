@@ -514,6 +514,24 @@ function AdminDashboard({ onLogout }) {
     return `${form.firstName} ${form.lastName}`.trim() || "Nuevo cliente";
   }, [form.firstName, form.lastName]);
 
+  const groupedCoupons = useMemo(() => {
+    const map = new Map();
+    for (const coupon of coupons) {
+      const key = coupon.national_id;
+      if (!map.has(key)) {
+        map.set(key, {
+          national_id: coupon.national_id,
+          first_name: coupon.first_name,
+          last_name: coupon.last_name,
+          phone: coupon.phone,
+          codes: []
+        });
+      }
+      map.get(key).codes.push(coupon.coupon_code);
+    }
+    return Array.from(map.values());
+  }, [coupons]);
+
   function updateField(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
     setError("");
@@ -1111,28 +1129,32 @@ function AdminDashboard({ onLogout }) {
             <table>
               <thead>
                 <tr>
-                  <th>Cupon</th>
                   <th>Cliente</th>
                   <th>Cedula</th>
                   <th>Telefono</th>
-                  <th>Compra</th>
-                  <th>Fecha</th>
+                  <th>Cupones</th>
+                  <th>#</th>
                 </tr>
               </thead>
               <tbody>
-                {coupons.map((coupon) => (
-                  <tr key={coupon.id}>
-                    <td className="codeCell">{coupon.coupon_code}</td>
-                    <td>{coupon.first_name} {coupon.last_name}</td>
-                    <td>{coupon.national_id}</td>
-                    <td>{coupon.phone}</td>
-                    <td>{coupon.purchase_note || money(coupon.purchase_amount)}</td>
-                    <td>{formatDate(coupon.created_at)}</td>
+                {groupedCoupons.map((participant) => (
+                  <tr key={participant.national_id}>
+                    <td>{participant.first_name} {participant.last_name}</td>
+                    <td>{participant.national_id}</td>
+                    <td>{participant.phone}</td>
+                    <td>
+                      <div className="couponBadges">
+                        {participant.codes.map((code) => (
+                          <span key={code} className="couponBadge">{code}</span>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="codeCell">{participant.codes.length}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            {coupons.length === 0 && <p className="empty">No hay cupones para mostrar.</p>}
+            {groupedCoupons.length === 0 && <p className="empty">No hay cupones para mostrar.</p>}
           </div>
           </section>
         )}

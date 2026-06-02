@@ -1152,6 +1152,23 @@ th {
   margin: 24px;
 }
 
+.couponBadges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.couponBadge {
+  background: #e7f5fc;
+  border: 1px solid #b8dff2;
+  border-radius: 6px;
+  color: #086aa8;
+  font-size: 0.82rem;
+  font-weight: 900;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+
 @media (max-width: 980px) {
   .shell,
   .adminShell,
